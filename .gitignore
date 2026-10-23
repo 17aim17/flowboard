@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+coverage/
+playwright-report/
+test-results/
+
+# Personal context, kept out of the submission
+CLAUDE.local.md
+docs/lead-engineer-tasks-module-take-home-candidate.pdf
+.DS_Store
