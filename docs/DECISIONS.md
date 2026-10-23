@@ -40,7 +40,7 @@ Each entry covers the decision, why I made it, what I rejected, the trade-off, a
 
 - **Decision:** Walk workspace, space, folder, list. A row with a new key adds a status. A row with an inherited key overrides name/color/position, or hides it with `hidden = true`. Category can't be overridden.
 - **Why:** It's the only model that supports all four operations the spec lists (inherit, override, add, hide) without copying, and it stays one loop. Locking category keeps meaning stable: "done" means done everywhere the key appears, so reports and the move policy can rely on it.
-- **Rejected:** "Override set replaces parent" (simpler, but a list that wants one extra column must copy the whole parent set, and later parent changes silently stop propagating). Copy-on-create (lists get their own copies, and inheritance becomes a one-time template).
+- **Rejected:** Lists only (no inheritance; the PDF FAQ scores it as incomplete). "Override set replaces parent" (simpler, but a list that wants one extra column must copy the whole parent set, and later parent changes silently stop propagating). Copy-on-create (lists get their own copies, and inheritance becomes a one-time template). Named status schemes assigned to containers, like Jira workflow schemes (reusable, but it's "replace" with an extra layer and can't express "the parent's set plus one column").
 - **Trade-off:** It needs an invariant (one origin row per key per path) and write-time checks to keep it true. These are covered by tests.
 - **Revisit:** If users need "detach from parent", add a per-container `inherit_statuses boolean` that starts resolution at that container.
 
@@ -216,3 +216,10 @@ Each entry covers the decision, why I made it, what I rejected, the trade-off, a
 
 - **Decision:** `mise.toml` pins Node 24.21.0. `package.json` pins `"packageManager": "pnpm@12.6.0"` and corepack provides that exact pnpm. Docker images use the same versions.
 - **Why:** Everyone (and CI and Docker) runs the same Node and pnpm, with no global installs to drift.
+
+## D-32 Cursor pagination for growing collections, complete sets returned whole
+
+- **Decision:** Users and tasks use cursor (keyset) pagination: `?limit&cursor`, response `{ data, page: { limit, nextCursor, hasMore } }`. The tree, resolved statuses and resolved fields return `{ data }` whole.
+- **Why:** A cursor holds the last row's sort values, so the next page is `WHERE (sort, id) > (last)`. It uses the index, costs the same on page 1 and page 100, and doesn't skip or repeat rows when tasks are added. The `page` object makes paging explicit for every client. Config sets and the tree are bounded and needed whole (a board can't render half its columns).
+- **Rejected:** Offset pagination (slower on deep pages, and inserts shift rows between pages). Paging the tree (the sidebar needs the full visible tree).
+- **Revisit:** Very large workspaces: load the tree lazily per parent (`GET /containers/:id/children?cursor`).
