@@ -211,12 +211,12 @@ A task has `title` (required, max 500), `description`, `statusKey`, `priority` (
 | Drag / change column / move to another list | `POST /v1/tasks/:id/move { listId?, statusKey?, beforeId?, afterId?, customFields?, version }`                                                                           |
 | Delete                                      | `DELETE /v1/tasks/:id`                                                                                                                                                   |
 
-**Moving to another list:**
+**Moving to another list.** A move is allowed only when the task's status has a match in the new list. Otherwise it's refused and nothing changes:
 
-1. If the request names a `statusKey`, it must exist in the new list.
-2. Otherwise, if the new list has the same key with the same category, keep it.
-3. Otherwise, use the new list's first status with the same category. Example: Sprint 12 "In Review" (active) moved to Backlog becomes "In Progress".
-4. Otherwise, refuse with 409 `STATUS_UNMAPPABLE`, and the UI asks the user to pick one. Only `closed` can hit this, because every list has the other three categories.
+1. **Explicit choice:** if the request names a `statusKey`, it must exist in the new list (400 otherwise). This is how the UI lets a user pick.
+2. **Same status:** otherwise, if the new list has the same key with the same category, the task keeps it.
+3. **Same category:** otherwise, the task gets the new list's first status with the same category. Example: Sprint 12 "In Review" (active) moved to Backlog becomes "In Progress".
+4. **No match:** otherwise, refuse with 409 `STATUS_UNMAPPABLE`, listing the new list's statuses so the UI can ask the user to pick one. There is no fallback to another category. Only `closed` can hit this, because every list has the other three categories.
 5. Required fields of the new list must be filled, from the task's existing values or from `customFields` in the request. Otherwise 400.
 6. Values for fields the new list doesn't have are kept but hidden, so moving back restores them.
 

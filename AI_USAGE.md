@@ -48,3 +48,8 @@ Corrections:
   - `GET /tree` first came back sorted by position across the whole workspace, mixing siblings from different parents. Fixed to depth-first tree order, with a test.
   - The first CI run failed: corepack's pnpm wasn't on mise's PATH in the runner. Fixed with `mise reshim`.
   - The AI's test helper used an `eslint-disable` comment for `any`; replaced with a lint override scoped to test files.
+
+### 2026-10-24: move policy confirmed
+
+- **Prompt:** "When moving from one list to another, make sure the move is only allowed if either a mapping exists or a category exists."
+- **Outcome:** This matched the planned policy. The AI tightened the wording in DESIGN.md section 7 and D-10, and settled its own open question: no fallback from `closed` to `done`; an unmatched move is refused with 409.

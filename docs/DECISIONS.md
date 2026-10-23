@@ -76,9 +76,9 @@ Each entry covers the decision, why I made it, what I rejected, the trade-off, a
 
 ## D-10 Cross-list move: keep, map by category, else reject
 
-- **Decision:** Keep the key if the destination has it with the same category. Otherwise use the destination's first status of the same category. If neither works, 409 `STATUS_UNMAPPABLE`, and the client can pass `statusKey` explicitly. Destination required fields must be present in existing values plus the move payload, else 400.
+- **Decision:** A move is allowed only when the status has a match in the destination: the client's explicit `statusKey`, the same key with the same category, or (mapped automatically) the destination's first status of the same category. With no match, 409 `STATUS_UNMAPPABLE` and nothing changes; there's no fallback to a different category. Destination required fields must be present in existing values plus the move payload, else 400.
 - **Why:** Category is the semantic meaning, so mapping by it preserves "this work is in progress" across differently named workflows. Only `closed` can be unmappable, because every set has the other three. That gives a natural reject path, and both outcomes are tested.
-- **Rejected:** Always reset to the first `not_started` (loses progress). Always reject (makes moves painful between lists that differ only in labels).
+- **Rejected:** Always reset to the first `not_started` (loses progress). Always reject (makes moves painful between lists that differ only in labels). Falling back to another category, such as closed to done ("done" means completed, which a closed task wasn't).
 
 ## D-11 Archive containers, hard delete tasks
 
