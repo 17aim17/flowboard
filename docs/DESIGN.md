@@ -73,14 +73,14 @@ Workspace "Flowboard"        default statuses: To Do, In Progress, Done, Closed
 │   │   ├── List "Backlog"   uses everything above as is
 │   │   └── List "Sprint 12" statuses: adds In Review, renames Done to "Shipped", hides Closed
 │   │                        field: needs_qa (checkbox)
-│   └── Folder "Platform"
-│       └── List "On-call"   Bob is denied here
+│   └── Folder "Platform"    statuses: adds Blocked (active), placed after In Progress
+│       └── List "On-call"   inherits Blocked from its folder. Bob is denied here
 └── Space "Marketing" (private)  own statuses: Idea, Drafting, Scheduled, Published
     └── Folder "Campaigns"       fields: channel (dropdown, required), publish_date (date)
         └── List "Launch Content"
 ```
 
-This is also the seed data.
+This is also the seed data. Statuses are set at all four levels (workspace defaults, Marketing space, Platform folder, Sprint 12 list), so the demo and tests show inheritance from every level, as the PDF FAQ requires.
 
 - **Depth is fixed:** workspace (one) > space > folder > list. Tasks live in lists. The database refuses anything else, such as a folder inside a folder.
 - **All four types are stored in one `containers` table** with a `type` column. Statuses, fields and permissions all point at a container the same way.
@@ -373,7 +373,7 @@ Backend tests call the real API against a real test database. No mocks, because 
 | # | What | Checks |
 |---|---|---|
 | T1 | Permissions | Bob's tree has no Marketing and no On-call, and Alice's has everything. Bob reading On-call tasks gets 403. No `X-User-Id` gets 401. |
-| T2 | Sibling lists | Backlog: todo, in_progress, done, closed. Sprint 12: todo, in_progress, in_review, done ("Shipped"). |
+| T2 | Sibling lists + inheritance | Backlog: todo, in_progress, done, closed. Sprint 12: todo, in_progress, in_review, done ("Shipped"). On-call inherits from its folder: todo, in_progress, blocked, done, closed. Launch Content inherits the Marketing space set. |
 | T3 | Bad status | Create or edit with `statusKey: "nope"` gets 400 with path `statusKey`. `in_review` is fine in Sprint 12 and refused in Backlog. |
 | T4 | Moving between lists | In Review to Backlog becomes In Progress. Closed to Sprint 12 gets 409, and works when `statusKey` is given. Missing required field gets 400, and works when the value is sent. |
 | T5 | Field types | `"5"` for a number gets 400 at `customFields.estimate`. Unknown dropdown option gets 400. A valid value of each type saves and reads back the same. |
