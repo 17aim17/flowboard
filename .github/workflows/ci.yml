@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18.6-alpine
+        env:
+          POSTGRES_USER: flowboard
+          POSTGRES_PASSWORD: flowboard
+          POSTGRES_DB: flowboard_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U flowboard" --health-interval 2s --health-timeout 3s --health-retries 30
+    env:
+      TEST_DATABASE_URL: postgres://flowboard:flowboard@localhost:5432/flowboard_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2 # installs the Node version pinned in mise.toml
+      - run: corepack enable pnpm # pnpm version comes from packageManager in package.json
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm test
