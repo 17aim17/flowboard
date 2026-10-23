@@ -21,3 +21,18 @@ Tool: Claude Code (Claude Opus 5.5) in the terminal, used as a pair programmer. 
   - The AI had picked TypeScript 7 because it was the latest release, without checking the tooling. On review it found `typescript-eslint` doesn't support TS 7 yet, so we moved to 6.0.
   - On my prompt to review for production, it replaced TanStack Router with React Router (simpler for 3 routes), and dnd-kit (no release since Dec 2024) with Atlassian's Pragmatic drag and drop.
   - It proposed production extras (rate limiting, Sentry, OpenTelemetry, deploy). I kept them out of scope and asked for them to be listed as later work (DESIGN.md section 18).
+
+### 2026-10-23/24: day 1 build (hierarchy, statuses, fields, seed, auth)
+
+Important prompts, in order:
+- "Whatever is listed on day 1, do it. Use my GitHub account." The AI built the workspace, schema, seed and modules and created a private repo.
+- "Why Fastify, not Express, Hono or NestJS?" The AI explained; I had it add the rejected options to D-01.
+- "Make small commits instead of big ones, so they are easy to go over." The AI split its pending work into one-concern commits and kept doing so.
+- "Before you go on, is there anything ambiguous in the assignment that you're assuming?" The AI listed 25 assumptions, 10 of them small coding-time decisions I hadn't seen.
+- "Do not over-engineer this; it should be simple to understand. Even though it's production-grade, it's still an assignment." The AI removed container reparenting, a restore endpoint, custom field reordering and users paging. They are listed as later work in DESIGN.md section 18.
+- "Why merge-by-key inheritance, what were the other models? Why reject a move without a status mapping? Did you think of pagination? Go with cursor-based pagination, and the response structure should reflect it." The AI added the full model comparison to D-05, explained that moves already map by category (only `closed` can be rejected), and made pagination explicit: `{ data, page: { limit, nextCursor, hasMore } }` (D-32).
+
+Corrections:
+- The AI had added features beyond the PDF (reparenting containers, restore, field reordering). I had them removed.
+- When simplifying, the AI dropped pagination from `/users`. I asked for cursor pagination with an explicit response shape, so it went back in, in a consistent form.
+- Kysely 0.29 moved the migrator to `kysely/migration`; the AI's first import failed typecheck and was fixed.
