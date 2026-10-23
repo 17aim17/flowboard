@@ -37,6 +37,21 @@ export const Placement = z.object({
   afterId: Id.nullish(),
 });
 
+/** Query for cursor-paginated collections. Pass `page.nextCursor` back as `cursor` for the next page. */
+export const PageQuery = z.object({
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+  cursor: z.string().optional(),
+});
+
+export const PageInfo = z.object({
+  limit: z.number().int(),
+  nextCursor: z.string().nullable(),
+  hasMore: z.boolean(),
+});
+
+/** Response shape for every paginated collection: `{ data: [...], page: { limit, nextCursor, hasMore } }`. */
+export const paginated = <T extends z.ZodType>(item: T) => z.object({ data: z.array(item), page: PageInfo });
+
 export const ErrorBody = z.object({
   error: z.object({
     code: z.string(),

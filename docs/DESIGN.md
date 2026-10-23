@@ -265,7 +265,12 @@ In words: you see a list only if you're allowed at every step of its path. A den
   - 404: not found
   - 409: conflicts with current data (stale version, status in use, key taken)
   - 500: our bug (the response includes the request id)
-- The task list is paged: `?limit=` (default 50, max 200) and `?cursor=`, returning `{ data, nextCursor }`. The cursor is an opaque string the client passes back to get the next page. Small bounded lists (users, tree, statuses, fields) aren't paged and return `{ data }`.
+- **Cursor pagination** on every collection that grows (users, tasks): `?limit=` (default 50, max 200) and `?cursor=`. Response:
+  ```json
+  { "data": [ ... ], "page": { "limit": 50, "nextCursor": "eyJpZCI6...", "hasMore": true } }
+  ```
+  The cursor is an opaque string: pass `page.nextCursor` back as `cursor` to get the next page. It encodes the last row's sort values, so pages stay correct when rows are added (no skipped or repeated rows, unlike `OFFSET`).
+- **Complete sets** the UI must render whole (the tree, a list's statuses, a list's fields) return `{ data: [...] }` without paging. A board can't show half its columns.
 - Every response has an `x-request-id` header. The same id is in the server logs, so a bug report can be traced.
 - `/health` says the API is up, and `/ready` also checks the database.
 - API docs (OpenAPI) are generated from the same Zod schemas and served at `/docs`.
