@@ -7,6 +7,7 @@ Each entry covers the decision, why I made it, what I rejected, the trade-off, a
 ## D-01 Node.js + TypeScript (Fastify) and React, not Go and Vue
 
 - **Decision:** Fastify on Node 24 with TypeScript for the API, and React 19 + Vite for the web app.
+- **Frontend shape:** a single-page app. Every screen is behind login, nothing needs SEO, and all data comes from our API, so the frontend is static files served by nginx. Next.js or React Router framework mode would add a second Node server that duplicates auth and data loading, with nothing gained for a logged-in app.
 - **Why:** I've shipped production React/TypeScript/Node for years, so in a 3-4 day window this is where my speed and quality are highest. The parts that matter (data model, resolution algorithms, API contract, permission rules) don't depend on the framework: they live in SQL, plain TypeScript functions and an OpenAPI document that a Go service or Vue client could implement unchanged. Fastify over Express: built-in schema-based validation and serialization, pino logging, request IDs, and an `inject()` test harness without a real socket.
 - **Rejected:** Go (I'd be learning while building, which risks correctness on exactly the parts being graded). Vue (same reason; I can explain the React state model in depth). NestJS (decorators and DI add a layer I'd have to defend and don't need at this size).
 - **Trade-off:** It doesn't match their production stack. Porting cost is low because contracts and SQL carry over.
@@ -177,3 +178,41 @@ Each entry covers the decision, why I made it, what I rejected, the trade-off, a
 - **Why:** A task has many assignees and a user has many tasks (many-to-many). The join table gives real FKs (you can't assign a user that doesn't exist), no duplicates (primary key), a plain index for "tasks assigned to Bob", and room to grow (`assigned_at`, `assigned_by`).
 - **Rejected:** `assignee_ids uuid[]` on tasks. Simpler (no join, one less table), and Postgres can index arrays, but it can't put a FK on array elements, so bad or deleted user ids go unnoticed.
 - **Trade-off:** Task reads need one extra query or join to fetch assignees.
+
+## D-26 Node runs the TypeScript source directly (no build step for the API)
+
+- **Decision:** `node src/server.ts`. Node 24 LTS strips types at load time, with no flag. `tsc` only checks types (`noEmit`).
+- **Why:** One less tool and no `dist/` folder. Stack traces point at the real source files. Fewer moving parts in Docker.
+- **Rules it imposes:** No TypeScript features that need compiling (`enum`, `namespace`, constructor parameter properties). `erasableSyntaxOnly` makes the compiler enforce this. Imports use `.ts` extensions.
+- **Rejected:** `tsc` to `dist/` (extra build step and config), `tsx` (another runtime dependency doing what Node now does).
+- **Revisit:** If we ever need syntax Node can't strip, add a `tsc` emit step. No code changes are needed.
+
+## D-27 TypeScript 6.0, not 7
+
+- **Decision:** TypeScript 6.0.3 everywhere.
+- **Why:** TypeScript 7 is the rewritten compiler, and `typescript-eslint` (needed for type-aware linting) supports only versions below 6.1 today. 6.0 is the newest version the whole toolchain supports.
+- **Revisit:** Move to 7 when `typescript-eslint` supports it. That's a version bump only.
+
+## D-28 ESLint (type-aware) + Prettier, checked in CI
+
+- **Decision:** ESLint with `typescript-eslint`'s type-checked rules, Prettier for formatting, and a GitHub Actions workflow that runs typecheck, lint and tests on every push.
+- **Why:** Type-aware rules catch real async bugs (a forgotten `await` on a database call). Prettier ends formatting debates. CI keeps main green without relying on memory. These are the tools most engineers already know.
+- **Rejected:** Biome (one fast tool for both jobs, but its type-aware rules are less complete than typescript-eslint's).
+
+## D-29 React Router, not TanStack Router
+
+- **Decision:** React Router in declarative mode.
+- **Why:** The app has about 3 routes. React Router is the router most React developers know, so the code reads instantly.
+- **Rejected:** TanStack Router (typed search params are nice, but file-based routing needs a Vite plugin and a generated route file, which is more machinery than 3 routes justify).
+
+## D-30 Pragmatic drag and drop (Atlassian), not dnd-kit
+
+- **Decision:** `@atlaskit/pragmatic-drag-and-drop` for the board. Each card also gets a "Move to..." menu for keyboard users.
+- **Why:** It's actively maintained and powers the boards in Jira and Trello. `@dnd-kit/core` has had no release since Dec 2024, and its successor `@dnd-kit/react` is still pre-1.0.
+- **Trade-off:** No built-in keyboard dragging. Atlassian's own accessibility guidance is an explicit "move" menu, which is also easier to test. It needs a little more glue code than dnd-kit's sortable presets.
+- **Rejected:** dnd-kit (maintenance risk), react-beautiful-dnd (deprecated by Atlassian in favor of this library).
+
+## D-31 Toolchain: mise for Node, corepack for pnpm
+
+- **Decision:** `mise.toml` pins Node 24.21.0. `package.json` pins `"packageManager": "pnpm@12.6.0"` and corepack provides that exact pnpm. Docker images use the same versions.
+- **Why:** Everyone (and CI and Docker) runs the same Node and pnpm, with no global installs to drift.

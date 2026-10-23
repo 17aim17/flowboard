@@ -328,10 +328,10 @@ The event JSON is also what other channels (webhooks, mobile) would receive:
 
 ## 13. Frontend
 
-React + TypeScript + Vite. Libraries:
+React + TypeScript + Vite, built as a single-page app: static files served by nginx, all data from our API (D-01). Libraries:
 - TanStack Query for server data
-- TanStack Router (the selected list, view and open task live in the URL)
-- dnd-kit for drag-and-drop
+- React Router (the selected list, view and open task live in the URL)
+- Pragmatic drag and drop (Atlassian's library behind Jira and Trello boards)
 - React Hook Form + Zod for forms
 - Mantine for ready-made UI components
 
@@ -341,7 +341,7 @@ React + TypeScript + Vite. Libraries:
 - **Board:**
   - One column per resolved status.
   - Cards show title, assignee initials, priority, due date, and one custom field chip.
-  - Drag with the mouse or the keyboard (space to pick up, arrows to move, space to drop).
+  - Drag with the mouse. For keyboard users, each card has a "Move to..." menu (column and position), which is Atlassian's recommended accessible alternative to dragging.
   - The card moves immediately. If the server refuses, it moves back and a message explains why.
 - **Table:** built-in columns plus one column per custom field, sortable by due date and priority. Click a row to open the drawer.
 - **Task drawer:** built-in fields plus one input per custom field, generated from the field schema. Server errors appear next to the right input.
@@ -412,3 +412,16 @@ Each step is committed with its tests:
 - (f) browser and component tests
 - (g) stretch goals: optimistic drag-and-drop first, then the activity feed only if time allows
 - (h) README, AI_USAGE.md, interview prep notes
+
+## 18. Later (beyond the PDF, not built now)
+
+Good production additions, deliberately left out to keep the submission to the PDF's scope:
+
+- **Deploy** to Fly.io, Railway or Render, with the same compose services.
+- **Rate limiting** per user (`@fastify/rate-limit`).
+- **Error tracking** (Sentry) on the API and the web app.
+- **Metrics and tracing** (OpenTelemetry for HTTP and Postgres, RED metrics per route).
+- **Security headers** at nginx (CSP, HSTS).
+- **Real login** (OIDC), replacing the `X-User-Id` plugin (section 9).
+- **Keyboard dragging** in addition to the "Move to..." menu.
+- **How this would grow for a CRM:** custom fields on contacts and deals using the same field engine, automation triggers on status change fed by the outbox events, and webhooks built on the same event payload.
