@@ -44,7 +44,9 @@ describe('validateCustomFields', () => {
 
   it('rejects a string for a number, with the field path', () => {
     const { issues } = validate({ severity: 'low', estimate: '5' }, 'create');
-    expect(issues).toEqual([{ path: 'customFields.estimate', code: 'invalid_type', message: 'Expected a number' }]);
+    expect(issues).toEqual([
+      { path: 'customFields.estimate', code: 'invalid_type', message: 'Expected a number' },
+    ]);
   });
 
   it('rejects select values that are not options', () => {
@@ -65,7 +67,9 @@ describe('validateCustomFields', () => {
 
   it('requires required fields on create', () => {
     const { issues } = validate({ estimate: 3 }, 'create');
-    expect(issues).toEqual([{ path: 'customFields.severity', code: 'required', message: 'This field is required' }]);
+    expect(issues).toEqual([
+      { path: 'customFields.severity', code: 'required', message: 'This field is required' },
+    ]);
   });
 
   it('on update, merges values and clears with null or empty', () => {

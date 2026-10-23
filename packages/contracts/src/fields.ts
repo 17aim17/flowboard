@@ -1,7 +1,9 @@
 import { z } from 'zod';
 import { Color, ContainerType, FieldType, Id, Key, type ValidationIssue } from './common.ts';
 
-const OptionId = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,39}$/, 'Use lowercase letters, digits, _ or - (max 40)');
+const OptionId = z
+  .string()
+  .regex(/^[a-z0-9][a-z0-9_-]{0,39}$/, 'Use lowercase letters, digits, _ or - (max 40)');
 
 export const FieldOption = z.object({
   id: OptionId,
@@ -114,8 +116,10 @@ function checkValue(field: FieldSchema, value: unknown): Omit<ValidationIssue, '
         return { code: 'invalid_type', message: 'Expected a list of option ids' };
       }
       const unknown = value.filter((v) => !optionIds.has(v));
-      if (unknown.length > 0) return { code: 'invalid_option', message: `Unknown option(s): ${unknown.join(', ')}` };
-      if (new Set(value).size !== value.length) return { code: 'duplicate_option', message: 'Options repeat' };
+      if (unknown.length > 0)
+        return { code: 'invalid_option', message: `Unknown option(s): ${unknown.join(', ')}` };
+      if (new Set(value).size !== value.length)
+        return { code: 'duplicate_option', message: 'Options repeat' };
       return null;
     }
   }

@@ -45,7 +45,9 @@ export function mergeStatuses(levels: StatusLevel[]): Map<string, Entry> {
         });
       } else {
         // Writes never allow this (an override with nothing above it to override).
-        throw new Error(`Status "${row.key}" on container ${container.id} overrides a key nothing above defines`);
+        throw new Error(
+          `Status "${row.key}" on container ${container.id} overrides a key nothing above defines`,
+        );
       }
     }
   }
@@ -57,7 +59,7 @@ export function resolveStatuses(levels: StatusLevel[]): ResolvedStatus[] {
   return [...mergeStatuses(levels).values()]
     .filter((status) => !status.hidden)
     .sort((a, b) => compare(a.position, b.position) || compare(a.key, b.key))
-    .map(({ hidden: _hidden, ...status }) => status);
+    .map(({ hidden, ...status }) => status);
 }
 
 // Byte order, matching the COLLATE "C" position columns in Postgres.

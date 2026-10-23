@@ -19,7 +19,8 @@ export function placeAmong(siblings: Sibling[], { beforeId, afterId }: Placement
   if (beforeId) {
     const index = indexOf(beforeId);
     const below = siblings[index + 1];
-    if (afterId && afterId !== below?.id) throw stale(`${beforeId} and ${afterId} are not next to each other`);
+    if (afterId && afterId !== below?.id)
+      throw stale(`${beforeId} and ${afterId} are not next to each other`);
     return generateKeyBetween(siblings[index]!.position, below?.position ?? null);
   }
   if (afterId) {
