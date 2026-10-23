@@ -38,3 +38,13 @@ Corrections:
 - The AI had added features beyond the PDF (reparenting containers, restore, field reordering). I had them removed.
 - When simplifying, the AI dropped pagination from `/users`. I asked for cursor pagination with an explicit response shape, so it went back in, in a consistent form.
 - Kysely 0.29 moved the migrator to `kysely/migration`; the AI's first import failed typecheck and was fixed.
+
+### 2026-10-24: day 1 verification
+
+- **Checks run:** `docker compose up --build` from an empty volume (migrate, seed, API healthy), `make test` in Docker (42 API tests), plus 10 validator and 7 resolution unit tests locally, and CI on GitHub.
+- **Mutation check on AI-written tests:** all 42 API tests passed on the first run, so the AI disabled the "status in use" check on purpose and confirmed the two T7 tests then fail. The tests assert real outcomes, not just "no error".
+- **AI mistakes caught:**
+  - A smoke-test shell script passed headers through an unquoted zsh variable, which sent a malformed header. The API was fine; the script was rewritten in Python.
+  - `GET /tree` first came back sorted by position across the whole workspace, mixing siblings from different parents. Fixed to depth-first tree order, with a test.
+  - The first CI run failed: corepack's pnpm wasn't on mise's PATH in the runner. Fixed with `mise reshim`.
+  - The AI's test helper used an `eslint-disable` comment for `any`; replaced with a lint override scoped to test files.
