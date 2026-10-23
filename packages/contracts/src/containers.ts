@@ -30,6 +30,6 @@ export const UpdateContainerBody = z
   .refine((body) => Object.keys(body).length > 0, 'Send at least one field');
 export type UpdateContainerBody = z.infer<typeof UpdateContainerBody>;
 
-/** Reorder among siblings, and optionally move under a new parent of the right type. */
-export const MoveContainerBody = Placement.extend({ parentId: Id.optional() });
+/** Reorder among siblings. */
+export const MoveContainerBody = Placement;
 export type MoveContainerBody = z.infer<typeof MoveContainerBody>;

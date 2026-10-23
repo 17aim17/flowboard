@@ -85,8 +85,9 @@ This is also the seed data. Statuses are set at all four levels (workspace defau
 - **Depth is fixed:** workspace (one) > space > folder > list. Tasks live in lists. The database refuses anything else, such as a folder inside a folder.
 - **All four types are stored in one `containers` table** with a `type` column. Statuses, fields and permissions all point at a container the same way.
 - **Order of siblings** is stored as a sortable string (`"a0"`, `"a1"`, `"a0V"`). To put an item between two others, the server makes a string that sorts between theirs, so only one row changes. The client just says "put it between item X and item Y".
-- **Move** a container: `POST /v1/containers/:id/move`. Moving a list to another folder can change its statuses, so the same safety check as section 5 runs.
-- **Delete** a container: it gets an `archived_at` date and disappears from the tree. `POST /v1/containers/:id/restore` brings it back.
+- **Reorder** a container among its siblings: `POST /v1/containers/:id/move { beforeId, afterId }`. Moving to a different parent isn't supported (the PDF asks for sibling reorder only).
+- **Delete** a container: it gets an `archived_at` date and disappears, with everything under it. The data stays in the database. (No restore endpoint; it's listed under later work.)
+- **The tree endpoint** returns a flat list of visible containers, each with `parentId`. The sidebar nests them.
 
 ## 5. Statuses (merge by key)
 
@@ -153,7 +154,7 @@ Task saves lock the same containers, so a task save and a status change on the s
 | A change leaves a list with no `done` status | 409 `STATUS_SET_INCOMPLETE` | T7 |
 | Two lists in the same folder | Backlog and Sprint 12 show different columns | T2 |
 | Create a task with a status that isn't in its list | 400, `details: [{ path: "statusKey" }]` | T3 |
-| Move a list into a folder that hides a status its tasks use | 409 `STATUS_IN_USE` | T7 |
+| A status change at a folder breaks a list below it | 409 (the check covers every list under the changed container) | T7 |
 
 ## 6. Custom fields
 
@@ -264,7 +265,7 @@ In words: you see a list only if you're allowed at every step of its path. A den
   - 404: not found
   - 409: conflicts with current data (stale version, status in use, key taken)
   - 500: our bug (the response includes the request id)
-- Paged lists take `?limit=` (default 50, max 200) and `?cursor=` and return `{ data, nextCursor }`. The cursor is an opaque string the client passes back to get the next page. Small config lists (statuses, fields) and the tree aren't paged.
+- The task list is paged: `?limit=` (default 50, max 200) and `?cursor=`, returning `{ data, nextCursor }`. The cursor is an opaque string the client passes back to get the next page. Small bounded lists (users, tree, statuses, fields) aren't paged and return `{ data }`.
 - Every response has an `x-request-id` header. The same id is in the server logs, so a bug report can be traced.
 - `/health` says the API is up, and `/ready` also checks the database.
 - API docs (OpenAPI) are generated from the same Zod schemas and served at `/docs`.
@@ -276,7 +277,7 @@ In words: you see a list only if you're allowed at every step of its path. A den
 | GET | `/v1/tree` | any user (filtered) |
 | POST | `/v1/containers` | admin |
 | GET / PATCH / DELETE | `/v1/containers/:id` | can view / admin / admin |
-| POST | `/v1/containers/:id/move`, `/v1/containers/:id/restore` | admin |
+| POST | `/v1/containers/:id/move` (reorder among siblings) | admin |
 | GET | `/v1/containers/:id/statuses` (own rows + the merged result) | can view |
 | PUT / DELETE | `/v1/containers/:id/statuses/:key` (add, override, hide or reorder via `beforeKey/afterKey` / remove own row) | admin |
 | GET / POST | `/v1/containers/:id/fields` | can view / admin |
@@ -424,4 +425,5 @@ Good production additions, deliberately left out to keep the submission to the P
 - **Security headers** at nginx (CSP, HSTS).
 - **Real login** (OIDC), replacing the `X-User-Id` plugin (section 9).
 - **Keyboard dragging** in addition to the "Move to..." menu.
+- **Moving containers to a new parent** (would re-run the status safety check), a **restore** endpoint for archived containers, and **reordering custom fields**.
 - **How this would grow for a CRM:** custom fields on contacts and deals using the same field engine, automation triggers on status change fed by the outbox events, and webhooks built on the same event payload.

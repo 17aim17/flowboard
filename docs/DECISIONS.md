@@ -82,7 +82,7 @@ Each entry covers the decision, why I made it, what I rejected, the trade-off, a
 
 ## D-11 Archive containers, hard delete tasks
 
-- **Decision:** Containers get `archived_at`, and archived subtrees read as 404, with a restore endpoint. Tasks are hard deleted, and the `task.deleted` outbox event keeps the record.
+- **Decision:** Containers get `archived_at`, and archived subtrees read as 404. The rows stay in the database; a restore endpoint is later work. Tasks are hard deleted.
 - **Why:** Archiving a container is a large blast-radius action that must be reversible. A single task delete is small, and soft-deleted tasks would leak into every query and in-use check.
 - **Revisit:** Task trash with 30-day retention if users ask.
 

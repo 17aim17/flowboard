@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Color, ContainerType, FieldType, Id, Key, Placement, type ValidationIssue } from './common.ts';
+import { Color, ContainerType, FieldType, Id, Key, type ValidationIssue } from './common.ts';
 
 const OptionId = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,39}$/, 'Use lowercase letters, digits, _ or - (max 40)');
 
@@ -62,12 +62,14 @@ export const CreateFieldBody = z
 export type CreateFieldBody = z.infer<typeof CreateFieldBody>;
 
 /** `options`, when sent, replaces the whole list: keep an option by sending its id. */
-export const UpdateFieldBody = Placement.extend({
-  name: z.string().trim().min(1).max(100).optional(),
-  type: FieldType.optional(),
-  required: z.boolean().optional(),
-  options: z.array(OptionInput).optional(),
-}).refine((body) => Object.values(body).some((v) => v !== undefined), 'Send at least one field');
+export const UpdateFieldBody = z
+  .object({
+    name: z.string().trim().min(1).max(100).optional(),
+    type: FieldType.optional(),
+    required: z.boolean().optional(),
+    options: z.array(OptionInput).optional(),
+  })
+  .refine((body) => Object.values(body).some((v) => v !== undefined), 'Send at least one field');
 export type UpdateFieldBody = z.infer<typeof UpdateFieldBody>;
 
 export type CustomFieldValues = Record<string, unknown>;
