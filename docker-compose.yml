@@ -1,0 +1,54 @@
+name: flowboard
+
+x-api-env: &api-env
+  DATABASE_URL: postgres://${POSTGRES_USER:-flowboard}:${POSTGRES_PASSWORD:-flowboard}@db:5432/${POSTGRES_DB:-flowboard}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+
+services:
+  db:
+    image: postgres:18.6-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-flowboard}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-flowboard}
+      POSTGRES_DB: ${POSTGRES_DB:-flowboard}
+    ports: ['${DB_PORT:-5432}:5432']
+    volumes:
+      - db-data:/var/lib/postgresql
+      - ./infra/postgres:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # One-shot job: apply migrations, then seed demo data if the database is empty.
+  migrate:
+    build: { context: ., dockerfile: apps/api/Dockerfile, target: runtime }
+    command: ['sh', '-c', 'node src/db/migrate.ts && node src/db/seed.ts']
+    environment: *api-env
+    depends_on:
+      db: { condition: service_healthy }
+
+  api:
+    build: { context: ., dockerfile: apps/api/Dockerfile, target: runtime }
+    environment: *api-env
+    ports: ['${API_PORT:-3000}:3000']
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:3000/ready || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # `make test`: backend tests against the separate flowboard_test database.
+  api-test:
+    profiles: [test]
+    build: { context: ., dockerfile: apps/api/Dockerfile, target: test }
+    environment:
+      TEST_DATABASE_URL: postgres://${POSTGRES_USER:-flowboard}:${POSTGRES_PASSWORD:-flowboard}@db:5432/flowboard_test
+    depends_on:
+      db: { condition: service_healthy }
+
+volumes:
+  db-data:
