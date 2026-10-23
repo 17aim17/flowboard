@@ -23,7 +23,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v2 # installs the Node version pinned in mise.toml
-      - run: corepack enable pnpm # pnpm version comes from packageManager in package.json
+      # pnpm version comes from packageManager in package.json; reshim puts it on mise's PATH
+      - run: corepack enable pnpm && mise reshim
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm lint
