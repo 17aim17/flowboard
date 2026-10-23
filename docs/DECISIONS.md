@@ -116,6 +116,8 @@ Each entry covers the decision, why I made it, what I rejected, the trade-off, a
 
 ## D-16 Outbox table + polling worker for async work
 
+- **Scope:** built only if time allows after the MVP and required tests pass. Otherwise this stays a written design, which the PDF accepts (engineering expectation 6).
+
 - **Decision:** Domain writes insert an `outbox` row in the same transaction. A separate worker process claims rows with `FOR UPDATE SKIP LOCKED`, writes `activity` idempotently (`ON CONFLICT (event_id) DO NOTHING`), and retries with backoff.
 - **Why:** No dual-write problem, because the event exists if and only if the change committed. There's no new infrastructure (Postgres is already there), and delivery is at least once with idempotent consumers. This is the standard shape that later feeds a real broker.
 - **Rejected:** Publishing to Redis/RabbitMQ from the request (dual write: the commit succeeds while the publish fails, or the reverse). LISTEN/NOTIFY alone (lost if no listener is connected). Kafka (operational weight with no benefit here).
@@ -161,3 +163,17 @@ Each entry covers the decision, why I made it, what I rejected, the trade-off, a
 ## D-23 nginx serves the SPA and proxies the API on one origin
 
 - **Why:** No CORS configuration, and it mirrors a typical production edge. The API is also exposed on :3000 for curl.
+
+## D-24 Status, list and position change only through `POST /tasks/:id/move`
+
+- **Decision:** `PATCH /tasks/:id` edits plain fields (title, description, priority, assignees, due date, custom fields). Anything that changes where a task sits (status, list, position) goes through `/move`. Status reorder is a `beforeKey/afterKey` option on the same `PUT .../statuses/:key` used to add or override, not a separate endpoint.
+- **Why:** One code path for status validation, the cross-list mapping and position calculation, so it's tested once. A status change always needs a new position anyway (the task lands in another column). Fewer endpoints for the same behavior.
+- **Rejected:** Allowing `statusKey` in PATCH too (two ways to do one thing, two places to keep in sync).
+- **Trade-off:** The drawer's status dropdown calls `/move` instead of PATCH. That's a client detail.
+
+## D-25 `task_assignees` join table instead of an array column
+
+- **Decision:** One row per (task, user) with a composite primary key and FKs to both tables.
+- **Why:** A task has many assignees and a user has many tasks (many-to-many). The join table gives real FKs (you can't assign a user that doesn't exist), no duplicates (primary key), a plain index for "tasks assigned to Bob", and room to grow (`assigned_at`, `assigned_by`).
+- **Rejected:** `assignee_ids uuid[]` on tasks. Simpler (no join, one less table), and Postgres can index arrays, but it can't put a FK on array elements, so bad or deleted user ids go unnoticed.
+- **Trade-off:** Task reads need one extra query or join to fetch assignees.

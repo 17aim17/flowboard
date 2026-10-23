@@ -12,7 +12,7 @@ Three rules make it more than a CRUD app:
 2. **Custom fields depend on where a list sits.** A task in one list may have an "Estimate" field, and a task in another list a "Channel" field.
 3. **Users see different parts of the tree.** Bob can't see what Alice can see.
 
-Scope is exactly the PDF. Stretch goals (the PDF allows two): **optimistic drag-and-drop with conflict handling**, and **an activity feed built by a background worker**. Deploy and other extras come after submission.
+Scope is exactly the PDF. Stretch goals (the PDF allows two): **optimistic drag-and-drop with conflict handling**, and, **only if time allows** after all required work and tests pass, **an activity feed built by a background worker**. If time runs out, the async path stays as a written design (the PDF accepts this). Deploy and other extras come after submission.
 
 ## 2. Choices I made where the assignment was open
 
@@ -199,7 +199,7 @@ A task has `title` (required, max 500), `description`, `statusKey`, `priority` (
 | List tasks of a list (paged) | `GET /v1/lists/:listId/tasks?sort=position\|dueDate\|priority&cursor=...` |
 | Create | `POST /v1/lists/:listId/tasks` |
 | Read | `GET /v1/tasks/:id` |
-| Edit | `PATCH /v1/tasks/:id` (must include `version`) |
+| Edit | `PATCH /v1/tasks/:id` (must include `version`): title, description, priority, assignees, due date, custom fields. Status, list and position change only through `/move`. |
 | Drag / change column / move to another list | `POST /v1/tasks/:id/move { listId?, statusKey?, beforeId?, afterId?, customFields?, version }` |
 | Delete | `DELETE /v1/tasks/:id` |
 
@@ -278,8 +278,7 @@ In words: you see a list only if you're allowed at every step of its path. A den
 | GET / PATCH / DELETE | `/v1/containers/:id` | can view / admin / admin |
 | POST | `/v1/containers/:id/move`, `/v1/containers/:id/restore` | admin |
 | GET | `/v1/containers/:id/statuses` (own rows + the merged result) | can view |
-| PUT / DELETE | `/v1/containers/:id/statuses/:key` (add, override or hide / remove own row) | admin |
-| POST | `/v1/containers/:id/statuses/:key/move` (reorder) | admin |
+| PUT / DELETE | `/v1/containers/:id/statuses/:key` (add, override, hide or reorder via `beforeKey/afterKey` / remove own row) | admin |
 | GET / POST | `/v1/containers/:id/fields` | can view / admin |
 | PATCH / DELETE | `/v1/fields/:id` | admin |
 | GET / PUT / DELETE | `/v1/containers/:id/grants[/:userId]` | admin |
@@ -287,7 +286,7 @@ In words: you see a list only if you're allowed at every step of its path. A den
 | GET / POST | `/v1/lists/:id/tasks` | can view |
 | GET / PATCH / DELETE | `/v1/tasks/:id` | can view |
 | POST | `/v1/tasks/:id/move` | can view both lists |
-| GET | `/v1/tasks/:id/activity` | can view |
+| GET | `/v1/tasks/:id/activity` (only if the activity feed is built) | can view |
 
 ## 11. Database tables
 
@@ -300,15 +299,15 @@ In words: you see a list only if you're allowed at every step of its path. A den
 | `tasks` | tasks | `list_id`, `status_key`, `priority`, `due_date`, `custom_fields` (JSON), `position`, `version` |
 | `task_assignees` | who is on which task | one row per (task, user) |
 | `grants` | allow/deny per user per container | one row per (container, user) |
-| `outbox` | events like "task moved", saved with the change | read by the worker |
-| `activity` | the activity feed | written by the worker |
+| `outbox` | events like "task moved", saved with the change | only if time allows: read by the worker |
+| `activity` | the activity feed | only if time allows: written by the worker |
 
 - **IDs** are UUIDs that Postgres generates in time order (`uuidv7()`).
 - **Custom field values** live in a JSON column on the task. Postgres can still search inside it with an index.
 - **Indexes** (pre-sorted lookups) cover the common reads: children of a container, tasks of a list by column and order, tasks by due date and priority, and searching inside custom field values.
 - **What the database can't check by itself:** whether a task's status and field values are valid for its list. That depends on the whole path, so the API checks it inside the same transaction as the save.
 
-## 12. Activity feed (background worker)
+## 12. Activity feed (background worker, only if time allows)
 
 1. When the API saves a task change, it also saves an event row in `outbox`, in the same transaction. Either both are saved or neither is.
 2. The worker checks `outbox` every second, takes a batch of new events, writes an `activity` row for each ("Alice moved Fix login to Done"), and marks the event done.
@@ -374,7 +373,7 @@ Backend tests call the real API against a real test database. No mocks, because 
 |---|---|---|
 | T1 | Permissions | Bob's tree has no Marketing and no On-call, and Alice's has everything. Bob reading On-call tasks gets 403. No `X-User-Id` gets 401. |
 | T2 | Sibling lists + inheritance | Backlog: todo, in_progress, done, closed. Sprint 12: todo, in_progress, in_review, done ("Shipped"). On-call inherits from its folder: todo, in_progress, blocked, done, closed. Launch Content inherits the Marketing space set. |
-| T3 | Bad status | Create or edit with `statusKey: "nope"` gets 400 with path `statusKey`. `in_review` is fine in Sprint 12 and refused in Backlog. |
+| T3 | Bad status | Create or move with `statusKey: "nope"` gets 400 with path `statusKey`. `in_review` is fine in Sprint 12 and refused in Backlog. |
 | T4 | Moving between lists | In Review to Backlog becomes In Progress. Closed to Sprint 12 gets 409, and works when `statusKey` is given. Missing required field gets 400, and works when the value is sent. |
 | T5 | Field types | `"5"` for a number gets 400 at `customFields.estimate`. Unknown dropdown option gets 400. A valid value of each type saves and reads back the same. |
 | T6 | Required fields | Create in Backlog without `severity` gets 400. Clearing `severity` gets 400. |
@@ -411,5 +410,5 @@ Each step is committed with its tests:
 - (d) permissions (T1)
 - (e) frontend: sidebar, board, table, drawer, settings
 - (f) browser and component tests
-- (g) stretch goals
+- (g) stretch goals: optimistic drag-and-drop first, then the activity feed only if time allows
 - (h) README, AI_USAGE.md, interview prep notes
