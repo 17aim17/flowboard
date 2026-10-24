@@ -53,3 +53,9 @@ Corrections:
 
 - **Prompt:** "When moving from one list to another, make sure the move is only allowed if either a mapping exists or a category exists."
 - **Outcome:** This matched the planned policy. The AI tightened the wording in DESIGN.md section 7 and D-10, and settled its own open question: no fallback from `closed` to `done`; an unmatched move is refused with 409.
+
+### 2026-10-24: day 2, tasks API
+
+- **Prompt:** "Start with day 2." The AI built the task schemas, the task service (list with cursor pagination and three sort orders, create, update, move, delete) and 26 API tests covering T3, T4, T5, T6 and T9, plus reordering and paging.
+- **AI-generated test that had to be fixed:** the stale-version test renamed a task, then looked it up by its old title, so it crashed instead of asserting. The API was correct; the test now looks the task up by id.
+- **Mutation check:** with the category mapping switched off, the two T4 mapping tests fail, so they test real behavior.
