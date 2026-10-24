@@ -1,5 +1,6 @@
 import js from '@eslint/js';
 import { defineConfig } from 'eslint/config';
+import reactHooks from 'eslint-plugin-react-hooks';
 import tseslint from 'typescript-eslint';
 
 export default defineConfig(
@@ -17,6 +18,7 @@ export default defineConfig(
     },
   },
   { files: ['*.js'], extends: [tseslint.configs.disableTypeChecked] },
+  { files: ['apps/web/**/*.{ts,tsx}'], extends: [reactHooks.configs.flat.recommended] },
   {
     // API tests read response bodies of many shapes; typing each one would add noise, not safety.
     files: ['**/*.test.ts', '**/test/**/*.ts'],
