@@ -41,6 +41,12 @@ services:
       timeout: 3s
       retries: 10
 
+  web:
+    build: { context: ., dockerfile: apps/web/Dockerfile }
+    ports: ['${WEB_PORT:-8080}:80']
+    depends_on:
+      api: { condition: service_healthy }
+
   # `make test`: backend tests against the separate flowboard_test database.
   api-test:
     profiles: [test]
