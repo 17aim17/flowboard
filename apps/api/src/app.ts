@@ -14,6 +14,7 @@ import { fieldRoutes } from './modules/fields/routes.ts';
 import { hierarchyRoutes } from './modules/hierarchy/routes.ts';
 import { identityRoutes } from './modules/identity/routes.ts';
 import { statusRoutes } from './modules/statuses/routes.ts';
+import { taskRoutes } from './modules/tasks/routes.ts';
 import { registerAuth } from './plugins/auth.ts';
 import { registerErrorHandler } from './plugins/errors.ts';
 
@@ -66,6 +67,7 @@ export async function buildApp({ db, logger }: { db: Db; logger: FastifyServerOp
       await v1.register(hierarchyRoutes);
       await v1.register(statusRoutes);
       await v1.register(fieldRoutes);
+      await v1.register(taskRoutes);
     },
     { prefix: '/v1' },
   );

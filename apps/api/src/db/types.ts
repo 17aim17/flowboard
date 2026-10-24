@@ -110,3 +110,4 @@ export type UserRow = Selectable<UsersTable>;
 export type ContainerRow = Selectable<ContainersTable>;
 export type StatusRow = Selectable<StatusDefinitionsTable>;
 export type FieldRow = Selectable<FieldDefinitionsTable>;
+export type TaskRow = Selectable<TasksTable>;
