@@ -1,0 +1,54 @@
+.board {
+  display: flex;
+  gap: var(--mantine-spacing-md);
+  align-items: flex-start;
+  overflow-x: auto;
+  padding-bottom: var(--mantine-spacing-md);
+}
+
+.column {
+  flex: 0 0 280px;
+  background: var(--mantine-color-gray-0);
+  border-radius: var(--mantine-radius-md);
+  padding: var(--mantine-spacing-xs);
+  min-height: 120px;
+  transition: background 120ms;
+}
+
+.column[data-over] {
+  background: var(--mantine-color-blue-0);
+}
+
+.cardWrapper {
+  position: relative;
+}
+
+.cardWrapper[data-dragging] {
+  opacity: 0.4;
+}
+
+.card {
+  cursor: grab;
+}
+
+.card:focus-visible {
+  outline: 2px solid var(--mantine-color-blue-5);
+}
+
+/* Shows where a dragged card will land: above or below this one. */
+.dropLine {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  height: 2px;
+  background: var(--mantine-color-blue-6);
+  border-radius: 1px;
+}
+
+.dropLine[data-edge='top'] {
+  top: -5px;
+}
+
+.dropLine[data-edge='bottom'] {
+  bottom: -5px;
+}
