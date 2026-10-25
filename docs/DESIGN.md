@@ -1,6 +1,6 @@
 # Flowboard design
 
-Draft for review, 2026-10-23. The assignment PDF (`docs/lead-engineer-tasks-module-take-home-candidate.pdf`) is the source of truth. The "why" behind each choice is in `docs/DECISIONS.md` (D-01, D-02, ...).
+Written 2026-10-23, updated 2026-10-25 to match the built code. The assignment PDF (`docs/lead-engineer-tasks-module-take-home-candidate.pdf`) is the source of truth. The "why" behind each choice is in `docs/DECISIONS.md` (D-01, D-02, ...).
 
 ## 1. What we are building
 
@@ -38,12 +38,12 @@ flowchart LR
   Curl["curl / scripts"] --> API
   Nginx --> API["API (Fastify) :3000<br/>1. who is calling?<br/>2. are they allowed?<br/>3. do the work"]
   API --> DB[("Postgres")]
-  Worker["Worker<br/>builds the activity feed"] --> DB
+  Worker["Worker (planned, not built)<br/>builds the activity feed"] -.-> DB
 ```
 
 - **Browser and curl are untrusted.** Anything they send is checked.
 - **The API** checks who you are on every request (section 9), checks permission (section 8), validates the input, then reads or writes the database.
-- **The worker** is a second small process. It reads events that the API saved and turns them into the activity feed (section 12).
+- **The worker** (stretch goal 2, not built) would be a second small process. It would read events that the API saved and turn them into the activity feed (section 12).
 - **nginx** serves the built React files and forwards `/v1` calls to the API, so the browser talks to one address (no CORS setup needed).
 
 ### Opening a board, then dragging a card
@@ -60,7 +60,7 @@ sequenceDiagram
   B->>A: GET /v1/lists/:id/tasks              (the cards)
   Note over B: user drags a card to "In Review"<br/>UI moves the card right away
   B->>A: POST /v1/tasks/:id/move {statusKey, beforeId, afterId, version}
-  A->>DB: check permission, check the status is valid for this list,<br/>save the task + an event row together
+  A->>DB: check permission, lock the list's path, check the status is valid<br/>for this list and the version is current, save the task
   A-->>B: 200 updated task (or an error, and the UI moves the card back)
 ```
 
@@ -252,7 +252,8 @@ In words: you see a list only if you're allowed at every step of its path. A den
 | Carol | member | allow on Marketing | everything                                                      |
 
 - The tree endpoint removes what you can't see.
-- Asking directly for something you can't see returns **403**. Something that doesn't exist (or is archived) returns **404**.
+- Asking directly for something you can't see returns **403**. Something that doesn't exist (or is archived) returns **404**. The 403 does reveal that the thing exists; the PDF asks for 403, and ids are random UUIDs, so this leaks very little.
+- **Where it's enforced:** in the API, never only in the UI. Every route that takes a container, list or task id calls `assertCanView` before doing the work (`apps/api/src/modules/permissions/service.ts`). For a task, the check uses the task's current list. Moving a task to another list needs access to both lists. The tree is filtered with the same rule.
 - Members can read and edit tasks in lists they can see. Only admins change containers, statuses, fields and grants.
 
 ## 9. Login (mock)
@@ -295,12 +296,10 @@ In words: you see a list only if you're allowed at every step of its path. A den
 | PUT / DELETE         | `/v1/containers/:id/statuses/:key` (add, override, hide or reorder via `beforeKey/afterKey` / remove own row) | admin                    |
 | GET / POST           | `/v1/containers/:id/fields`                                                                                   | can view / admin         |
 | PATCH / DELETE       | `/v1/fields/:id`                                                                                              | admin                    |
-| GET / PUT / DELETE   | `/v1/containers/:id/grants[/:userId]`                                                                         | admin                    |
 | GET                  | `/v1/lists/:id/resolved-statuses`, `/v1/lists/:id/resolved-fields`                                            | can view                 |
 | GET / POST           | `/v1/lists/:id/tasks`                                                                                         | can view                 |
 | GET / PATCH / DELETE | `/v1/tasks/:id`                                                                                               | can view                 |
 | POST                 | `/v1/tasks/:id/move`                                                                                          | can view both lists      |
-| GET                  | `/v1/tasks/:id/activity` (only if the activity feed is built)                                                 | can view                 |
 
 ## 11. Database tables
 
@@ -356,7 +355,7 @@ React + TypeScript + Vite, built as a single-page app: static files served by ng
 
 **Screens:**
 
-- **Header:** user switcher (Alice, Bob, Carol). The choice is saved in localStorage and sent as `X-User-Id`. Switching clears cached data.
+- **Header:** user switcher (Alice, Bob, Carol). The choice is saved in localStorage and sent as `X-User-Id`. Switching clears cached data and remounts the app, so every query reloads as the new user. Other open tabs follow the switch. Admins also get a "Settings" link.
 - **Sidebar:** the tree. Click a list to open it.
 - **Board:**
   - One column per resolved status.
@@ -365,9 +364,9 @@ React + TypeScript + Vite, built as a single-page app: static files served by ng
   - The card moves immediately. If the server refuses, it moves back and a message explains why.
 - **Table:** built-in columns plus one column per custom field, sortable by due date and priority. Click a row to open the drawer.
 - **Task drawer:** built-in fields plus one input per custom field, generated from the field schema. Server errors appear next to the right input.
-- **Settings page per container:**
-  - Statuses: shows the merged result (with where each status comes from), and lets an admin add, rename, recolor, hide, reorder or remove this container's own rows.
-  - Fields: add, edit or delete.
+- **Settings page per container** (`/settings/:id`, admins only; a "Level" picker switches between workspace, spaces, folders and lists):
+  - Statuses: shows the merged result, with where each status comes from ("Defined here", or the level it's inherited from, marked "changed here" when this level overrides it). An admin can add, rename, recolor, hide or show, reorder (up/down buttons) and delete this container's own statuses, or undo an override. A refused change shows the server's details, for example "Sprint 12: 2 task(s) in in_progress", with a link to the list.
+  - Fields: inherited fields are read-only with their source. Fields defined here can be added, edited (name, type, required, options) and deleted.
 - **Every view has loading, empty and error states.** For example "No tasks yet", or "You don't have access to this list" on a 403.
 
 ## 14. Running it
@@ -377,7 +376,6 @@ docker compose up --build
   db       Postgres 18
   migrate  creates tables, adds seed data on first run, then exits
   api      http://localhost:3000   (docs at /docs)
-  worker   activity feed
   web      http://localhost:8080   (open this)
 ```
 
@@ -404,9 +402,12 @@ Backend tests call the real API against a real test database. No mocks, because 
 
 Frontend:
 
-- One browser test (Playwright): open Sprint 12, check the four columns, open a task, change Estimate, save, reopen, and check the value stuck.
-- A bonus browser test: as Alice "Launch Content" is in the sidebar. Switch to Bob and it's gone.
-- One component test: each custom field type renders the right input.
+- One browser test (Playwright): open Sprint 12, check the four columns, open a task, change Estimate to a random value, save, reload the page, and check the value came back from the server. A random value lets the test run again on the same data.
+- A bonus browser test: as Alice "Launch Content" is in the sidebar. Switch to Bob and it's gone, and opening its URL directly shows "You don't have access".
+- One component test (Vitest + Testing Library): each custom field type renders the right input and reports the value in the shape the API validates (a number, not `"5"`; option ids; `null` when emptied).
+- Not covered by automated tests: drag and drop itself, the optimistic rollback on a conflict (checked by hand in a browser), and the settings screens. The rules behind them are covered by the API tests.
+
+`make test` runs the API tests, then the component and browser tests, all in Docker. The browser tests run against the running stack and its demo data.
 
 ## 16. Growing it later
 
@@ -444,6 +445,9 @@ Good production additions, deliberately left out to keep the submission to the P
 - **Metrics and tracing** (OpenTelemetry for HTTP and Postgres, RED metrics per route).
 - **Security headers** at nginx (CSP, HSTS).
 - **Real login** (OIDC), replacing the `X-User-Id` plugin (section 9).
+- **A grants API and screen** (`/v1/containers/:id/grants`). Grants come from the seed for now; the PDF doesn't ask for managing them.
+- **Reordering spaces, folders and lists in the UI.** The API endpoint exists (`POST /v1/containers/:id/move`).
+- **More than one workspace** (multi-tenant): a `workspace_members` table with the role per workspace, a `workspace_id` column on every table and index, and the workspace in the auth token.
 - **Keyboard dragging** in addition to the "Move to..." menu.
 - **Moving containers to a new parent** (would re-run the status safety check), a **restore** endpoint for archived containers, and **reordering custom fields**.
 - **How this would grow for a CRM:** custom fields on contacts and deals using the same field engine, automation triggers on status change fed by the outbox events, and webhooks built on the same event payload.
