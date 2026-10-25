@@ -21,20 +21,24 @@ test('open a list, check its columns, edit a custom field and save', async ({ pa
   // Sprint 12 adds In Review, renames Done to Shipped and hides Closed (docs/DESIGN.md section 5).
   expect(await columnNames(page)).toEqual(['To Do', 'In Progress', 'In Review', 'Shipped']);
 
-  // A different value each run, so the test passes again on the same database.
-  const estimate = String(10 + Math.floor(Math.random() * 90));
   await page.getByRole('button', { name: 'Open Fix login redirect loop' }).click();
   const drawer = page.getByRole('dialog');
-  await drawer.getByRole('textbox', { name: 'Estimate (pts)' }).fill(estimate);
+  const input = drawer.getByRole('textbox', { name: 'Estimate (pts)' });
+  const original = await input.inputValue();
+  const estimate = String(Number(original) + 1); // always differs from the saved value
+  await input.fill(estimate);
   await drawer.getByRole('button', { name: 'Save' }).click();
   await expect(page.getByText('Saved')).toBeVisible();
 
   // Reload so the value has to come back from the server, not from the form state. The open task is
   // in the URL (?task=...), so the drawer reopens on its own and loads the task again.
   await page.reload();
-  await expect(page.getByRole('dialog').getByRole('textbox', { name: 'Estimate (pts)' })).toHaveValue(
-    estimate,
-  );
+  await expect(input).toHaveValue(estimate);
+
+  // Put the demo data back the way it was, so running the tests doesn't change what a reviewer sees.
+  await input.fill(original);
+  await drawer.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByText('Saved')).toBeVisible();
 });
 
 test('switching from Alice to Bob hides the private space', async ({ page }) => {
