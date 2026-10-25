@@ -72,6 +72,16 @@ describe('status validation (T3)', () => {
     expect((await create('Sprint 12', body)).status).toBe(201);
   });
 
+  it('rejects a status sent to PATCH: status changes go through /move', async () => {
+    const task = await taskRow('Fix login redirect loop');
+    for (const body of [{ statusKey: 'nope' }, { statusId: 'nope' }, { statusKey: 'done' }]) {
+      const res = await alice('PATCH', `/tasks/${task.id}`, { version: task.version, ...body });
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('VALIDATION_FAILED');
+    }
+    expect(await taskRow('Fix login redirect loop')).toEqual(task);
+  });
+
   it('rejects changing to an unknown status', async () => {
     const res = await move('Fix login redirect loop', { statusKey: 'closed' }); // hidden in Sprint 12
     expect(res.status).toBe(400);

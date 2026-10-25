@@ -26,6 +26,8 @@ const AssigneeIds = z.array(Id).refine((ids) => new Set(ids).size === ids.length
 const DueDate = z.iso.datetime({ offset: true }).nullable();
 const CustomFieldsInput = z.record(z.string(), z.unknown());
 
+// Task bodies are strict: an unknown key (say statusKey on PATCH, or a typo) is a 400, not silently dropped.
+
 /** New tasks go to the end of their column unless beforeId/afterId place them. */
 export const CreateTaskBody = Placement.extend({
   title: Title,
@@ -35,14 +37,14 @@ export const CreateTaskBody = Placement.extend({
   assigneeIds: AssigneeIds.default([]),
   dueDate: DueDate.default(null),
   customFields: CustomFieldsInput.default({}),
-});
+}).strict();
 export type CreateTaskBody = z.infer<typeof CreateTaskBody>;
 
 /**
  * Edits plain fields. `version` must be the version the client last saw (409 if someone saved since).
  * customFields merge into existing values; null clears one. Status, list and position change via move.
  */
-export const UpdateTaskBody = z.object({
+export const UpdateTaskBody = z.strictObject({
   version: z.number().int(),
   title: Title.optional(),
   description: Description.optional(),
@@ -63,7 +65,7 @@ export const MoveTaskBody = Placement.extend({
   listId: Id.optional(),
   statusKey: Key.optional(),
   customFields: CustomFieldsInput.optional(),
-});
+}).strict();
 export type MoveTaskBody = z.infer<typeof MoveTaskBody>;
 
 export const TaskSort = z.enum(['position', 'dueDate', 'priority']);
