@@ -69,3 +69,19 @@ Corrections:
   - A first draft of the board had an `isNoop` helper that compared the wrong columns, and the "Move down" and "Move to column" menu actions could go out of range. Both were caught in self-review before running.
   - `pnpm add` silently added a supply-chain exemption for `react-hook-form@7.91.0` (published less than a day earlier). The AI removed the exemption and pinned 7.90.0 instead of bypassing the check.
   - The "Saved" toast covered the drawer's Save button; moved notifications to the top right.
+
+### 2026-10-25: day 3, permissions, settings UI, frontend tests
+
+- **Prompt:** "Do day 3, and tell me what you're planning and any assumptions you're going to make." The AI listed the plan and 8 assumptions first (keep the D-15 rule, 403 for hidden but existing, moves need access to both lists, members can read config but not change it, any user can be assigned, settings reorder via buttons, no UI for creating containers, the activity feed only if time is left), then built it.
+- **Questions I asked along the way:** the testing strategy for backend and frontend; whether spaces and lists can be reordered (API yes, UI no, moved to "Later"); what the lock icon means; whether "Flowboard" is the workspace and whether there can be more than one. The multi-tenant answer was added to DESIGN.md section 18.
+- **Built:** view permissions on the tree and every read and write (9 tests for T1); a settings page for statuses and custom fields at any level; a component test for custom field inputs; two Playwright tests; `make test` running everything in Docker.
+- **Mutation checks:** with the permission check forced to "allow", the 5 direct-access T1 tests fail. With the number input reporting a string, the component test fails.
+- **Bugs found while checking in the browser:**
+  - Switching users cleared the query cache, but components already on screen kept the previous user's data. This dated from day 2 and was only visible once a query (`/me`) differed between users. Fixed by remounting the app per user (D-37).
+  - I was using the app in another tab. When I switched user there, the AI's tab kept showing "Alice" while sending requests as Carol, and an admin action returned 403. The server was right; the UI was misleading. Fixed by following the `storage` event.
+  - The settings page's first draft showed errors behind open modals, repeated the error message twice when there were no details, and said "every list inside it" for a list. All fixed before committing.
+- **AI-written tests that had to be fixed:**
+  - The component test looked up select inputs by the `textbox` role; Mantine 9 exposes them as `combobox`. Then the dropdown didn't open in jsdom until the test rendered Mantine with `env="test"` (no transitions or portals).
+  - The first Playwright test pressed Escape to close the drawer after a reload, before the drawer had reopened from the URL, then clicked a card under the drawer's overlay. The test now checks the value in the reopened drawer, which is also the stronger check.
+  - The test setup's browser polyfills failed lint (`unbound-method`) and then typecheck in two rounds; they are now plain assignments, since they only run in jsdom.
+- **Doc corrections:** DESIGN.md still listed a grants API and a worker that were never built. The grants API moved to "Later"; the worker is marked as planned.
