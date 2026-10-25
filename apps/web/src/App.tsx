@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router';
 import { useTree } from './api/queries.ts';
 import { AppLayout } from './layout/AppLayout.tsx';
 import { ListPage } from './list/ListPage.tsx';
+import { SettingsPage } from './settings/SettingsPage.tsx';
 import { EmptyState } from './shared/states.tsx';
 
 export function App() {
@@ -10,6 +11,7 @@ export function App() {
       <Route element={<AppLayout />}>
         <Route index element={<FirstList />} />
         <Route path="lists/:listId" element={<ListPage />} />
+        <Route path="settings/:containerId" element={<SettingsPage />} />
         <Route path="*" element={<EmptyState title="Page not found" />} />
       </Route>
     </Routes>

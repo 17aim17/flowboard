@@ -1,7 +1,8 @@
 import { TaskSort } from '@flowboard/contracts';
-import { Breadcrumbs, Group, SegmentedControl, Stack, Text, Title } from '@mantine/core';
-import { useParams, useSearchParams } from 'react-router';
-import { useFields, useStatuses, useTree, useUsers } from '../api/queries.ts';
+import { Breadcrumbs, Button, Group, SegmentedControl, Stack, Text, Title } from '@mantine/core';
+import { IconSettings } from '@tabler/icons-react';
+import { Link, useParams, useSearchParams } from 'react-router';
+import { useFields, useMe, useStatuses, useTree, useUsers } from '../api/queries.ts';
 import { Board } from '../board/Board.tsx';
 import { pathTo } from '../sidebar/tree.ts';
 import { ErrorState, LoadingState } from '../shared/states.tsx';
@@ -19,6 +20,7 @@ export function ListPage() {
   const statuses = useStatuses(listId);
   const fields = useFields(listId);
   const users = useUsers();
+  const me = useMe();
 
   const view = params.get('view') === 'table' ? 'table' : 'board';
   const sort = TaskSort.catch('position').parse(params.get('sort'));
@@ -49,14 +51,27 @@ export function ListPage() {
           </Breadcrumbs>
           <Title order={2}>{path.at(-1)?.name ?? ''}</Title>
         </div>
-        <SegmentedControl
-          value={view}
-          onChange={(next) => update({ view: next === 'table' ? 'table' : null })}
-          data={[
-            { value: 'board', label: 'Board' },
-            { value: 'table', label: 'List' },
-          ]}
-        />
+        <Group gap="sm">
+          {me.data?.role === 'admin' && (
+            <Button
+              component={Link}
+              to={`/settings/${listId}`}
+              variant="default"
+              size="xs"
+              leftSection={<IconSettings size={14} />}
+            >
+              List settings
+            </Button>
+          )}
+          <SegmentedControl
+            value={view}
+            onChange={(next) => update({ view: next === 'table' ? 'table' : null })}
+            data={[
+              { value: 'board', label: 'Board' },
+              { value: 'table', label: 'List' },
+            ]}
+          />
+        </Group>
       </Group>
 
       {!list.statuses || !list.fields || !list.users ? (

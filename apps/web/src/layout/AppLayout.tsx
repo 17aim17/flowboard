@@ -1,5 +1,7 @@
-import { AppShell, Group, SegmentedControl, Text, Title } from '@mantine/core';
-import { Outlet } from 'react-router';
+import { AppShell, Button, Group, SegmentedControl, Text, Title } from '@mantine/core';
+import { IconSettings } from '@tabler/icons-react';
+import { Link, Outlet } from 'react-router';
+import { useMe, useTree } from '../api/queries.ts';
 import { HANDLES, useCurrentUser } from '../auth/current-user.tsx';
 import { Sidebar } from '../sidebar/Sidebar.tsx';
 
@@ -9,7 +11,10 @@ export function AppLayout() {
       <AppShell.Header>
         <Group h="100%" px="md" justify="space-between">
           <Title order={4}>Flowboard</Title>
-          <UserSwitcher />
+          <Group gap="md">
+            <SettingsLink />
+            <UserSwitcher />
+          </Group>
         </Group>
       </AppShell.Header>
       <AppShell.Navbar p="xs">
@@ -19,6 +24,24 @@ export function AppLayout() {
         <Outlet />
       </AppShell.Main>
     </AppShell>
+  );
+}
+
+/** Admins only: opens the workspace's settings. Members never see it; the API refuses them anyway. */
+function SettingsLink() {
+  const me = useMe();
+  const workspace = useTree().data?.find((c) => c.type === 'workspace');
+  if (me.data?.role !== 'admin' || !workspace) return null;
+  return (
+    <Button
+      component={Link}
+      to={`/settings/${workspace.id}`}
+      variant="subtle"
+      size="xs"
+      leftSection={<IconSettings size={14} />}
+    >
+      Settings
+    </Button>
   );
 }
 
