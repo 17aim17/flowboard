@@ -422,6 +422,20 @@ Frontend:
 
   Tasks, tree and permissions stay together, because every task save needs all three in one transaction.
 
+### More than one workspace (multi-tenant)
+
+Today there is exactly one workspace, as the PDF says ("single workspace, single tenant"). The seed creates it, the API can't create another (`POST /containers` only accepts space, folder or list), and a partial unique index rejects a second one. All users belong to it, so nothing records "which workspace a user is in".
+
+In products like ClickUp or Slack, a workspace is one company (the tenant), and one person can belong to several workspaces. So the relationship is many to many: a workspace has many members, and a user can be a member of many workspaces. Going there would take five changes:
+
+1. **Allow more workspaces:** drop the `containers_single_workspace` index.
+2. **Membership with a role per workspace:** a `workspace_members (workspace_id, user_id, role)` table. The role moves off `users`, so Alice can be an admin in one company and a member in another.
+3. **A `workspace_id` on every tenant table:** `containers`, `tasks`, `field_definitions`, `status_definitions`, `grants`, first in their indexes, and in every query. It could be derived by walking up the tree, but a direct column is cheap to index and hard to forget. Postgres row-level security can enforce it as a second line of defense.
+4. **Field keys unique per workspace:** the unique index becomes `(workspace_id, key)` instead of `key` alone.
+5. **The workspace in the request:** the auth token carries the current workspace (or URLs become `/v1/workspaces/:id/...`), and the API checks the user is a member before anything else.
+
+The tree, status and field inheritance, and the permission rules don't change: they already start from the workspace root.
+
 ## 17. Build order
 
 Each step is committed with its tests:
@@ -447,7 +461,7 @@ Good production additions, deliberately left out to keep the submission to the P
 - **Real login** (OIDC), replacing the `X-User-Id` plugin (section 9).
 - **A grants API and screen** (`/v1/containers/:id/grants`). Grants come from the seed for now; the PDF doesn't ask for managing them.
 - **Reordering spaces, folders and lists in the UI.** The API endpoint exists (`POST /v1/containers/:id/move`).
-- **More than one workspace** (multi-tenant): a `workspace_members` table with the role per workspace, a `workspace_id` column on every table and index, and the workspace in the auth token.
+- **More than one workspace** (multi-tenant): planned in section 16.
 - **Keyboard dragging** in addition to the "Move to..." menu.
 - **Moving containers to a new parent** (would re-run the status safety check), a **restore** endpoint for archived containers, and **reordering custom fields**.
 - **How this would grow for a CRM:** custom fields on contacts and deals using the same field engine, automation triggers on status change fed by the outbox events, and webhooks built on the same event payload.
