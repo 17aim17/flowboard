@@ -7,7 +7,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc -p .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@atlaskit/pragmatic-drag-and-drop": "4.0.0",
