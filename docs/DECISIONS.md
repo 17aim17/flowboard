@@ -241,3 +241,32 @@ Each entry covers the decision, why I made it, what I rejected, the trade-off, a
 - **Why:** One repo means one change updates the schema, the API and the web app together, with one compose file and one CI. A monorepo isn't a monolith: each app deploys on its own. Domain folders match the module boundaries the PDF asks for and keep one feature in one place. They also make extraction concrete: a module that only talks to others through exported functions can move into its own `apps/<service>` folder, with calls replaced by HTTP or events.
 - **Growth path:** New services (`apps/activity-worker`, `apps/search-service`) and web apps (`apps/admin-web`) are new folders in `apps/`. Shared UI goes to `packages/ui`. When CI gets slow, add Turborepo or Nx to build only affected apps. Use `CODEOWNERS` per app for ownership. Move to separate repos only if teams need fully independent tooling.
 - **Rejected:** Separate repos for API and web (shared types would need publishing and versioning). Layer folders (`controllers/`, `services/`, `repositories/`), which spread one feature across many folders and hide module boundaries. A repository layer over Kysely (typed queries are already readable; another layer adds files without clarity). Splitting `apps/` into `apps/` (frontends) and `services/` (backends) now: it reads well with many backends, but with one API it's extra structure, and it's a folder move later.
+
+## D-34 Permission checks run in the route, before the write
+
+- **Decision:** Every route that takes a container, list or task id calls `assertCanView(user, containerId)` first. It loads the path and the user's grants and applies the D-15 rule. Task routes look up the task's list first; a cross-list move checks both lists. The tree uses the same rule on the full container list (`filterVisible`), keeping a node only if its parent was kept.
+- **Why:** One explicit line per route is easy to review ("does this route check access?") and keeps the service functions about domain rules only. Checking before the write means a refused request touches nothing.
+- **Rejected:** A Fastify hook that guesses the resource from the URL (hides the check, and task routes need a lookup anyway). Filtering in SQL with a recursive query joined to grants (faster for huge trees, but harder to read and test than one function over at most a few hundred rows).
+- **Trade-off:** The check runs outside the write transaction, so a grant removed in the same millisecond could let one write through. Grants change rarely, and the next request is refused. Each request also loads the path and grants again (two small indexed queries).
+- **Revisit:** If permission queries show up in profiles, cache grants per user for a few seconds, or move the check into the transaction that already locks the path (D-14).
+
+## D-35 Settings: one admin page per container, reorder with buttons
+
+- **Decision:** `/settings/:containerId` shows the statuses and custom fields of any level, with a picker to switch levels. Statuses show the merged result plus where each comes from, and only offer actions this level can take: delete (defined here), hide (inherited), undo (changed here), show again (hidden here). Reordering uses up/down buttons. Errors from the server (409 with details) are shown as a list next to the action, inside the modal when one is open.
+- **Why:** The PDF asks for "edit resolved vs local" for a list and a non-list level; one page that works for every level covers both with one component. Showing the resolved list (not just this level's rows) is what an admin needs to understand what lists will display. Up/down buttons are keyboard accessible and need no extra drag code.
+- **Rejected:** Drag-and-drop reordering of statuses (more code for a rare admin action). A separate page per level type. Showing only this level's own rows (hard to understand without the inherited ones).
+- **Trade-off:** Each up/down click is one request. The page is admin-only, which matches D-13; members don't see the link, and the API refuses them anyway.
+
+## D-36 Frontend tests: one component test and two browser tests
+
+- **Decision:** A Vitest + Testing Library test for `CustomFieldInput` (each field type renders the right input and reports the right value shape), and two Playwright tests against the running stack: the PDF path (Sprint 12 columns, edit Estimate, save, reload, value persisted) and Alice-to-Bob (private list disappears, direct URL shows "no access"). `make test` runs them in Docker, in the official Playwright image pinned to the same version as the package.
+- **Why:** The rules that matter (validation, inheritance, permissions) live in the API and the shared validator and are tested there. The UI tests cover what only the UI can get wrong: sending a number as a string, and the end-to-end flow working in a real browser.
+- **Rejected:** Mocking the API in the browser tests (would test the mocks). A fresh database per browser test run (would reset the demo data a reviewer may be looking at); the edit test uses a random value instead, so it can run again on the same data.
+- **Trade-off:** Drag and drop, the optimistic rollback and the settings screens are checked by hand, not by tests. The browser tests share the demo database, so they run one at a time.
+
+## D-37 Switching users remounts the app
+
+- **Decision:** The current-user provider renders the app under `key={handle}`, so switching users unmounts and remounts everything, after clearing the query cache. It also listens for the browser `storage` event, so other open tabs switch too.
+- **Why:** Clearing the cache alone left mounted queries showing the previous user's data (found when `/me` decided whether to show Settings). And one tab switching users changed the header every other tab sends, while those tabs still showed the old name.
+- **Rejected:** Putting the user handle in every query key (easy to forget in one place). Keeping the user in memory per tab (each tab could then be a different user, which is confusing with a single mock login).
+- **Trade-off:** A switch loses unsaved form input. It's a mock login, and real login would reload the page anyway.
