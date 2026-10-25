@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { createContext, type ReactNode, useCallback, useContext, useState } from 'react';
+import { createContext, Fragment, type ReactNode, useCallback, useContext, useEffect, useState } from 'react';
 
 // Mock login: the chosen user is remembered in localStorage and sent as X-User-Id on every request.
 
@@ -30,7 +30,24 @@ export function CurrentUserProvider({ children }: { children: ReactNode }) {
     [queryClient],
   );
 
-  return <CurrentUserContext value={{ handle, switchUser }}>{children}</CurrentUserContext>;
+  // Another tab switched users: follow it, or this tab would show one user while sending requests as another.
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== STORAGE_KEY) return;
+      queryClient.clear();
+      setHandle(getCurrentUser());
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [queryClient]);
+
+  // Keyed by user: switching remounts the app, so every query refetches as the new user. Clearing the
+  // cache alone leaves mounted queries showing the previous user's data.
+  return (
+    <CurrentUserContext value={{ handle, switchUser }}>
+      <Fragment key={handle}>{children}</Fragment>
+    </CurrentUserContext>
+  );
 }
 
 export function useCurrentUser() {
