@@ -9,5 +9,6 @@ down:  ## Stop everything (keeps the database volume)
 seed:  ## Wipe the database and load the demo data again
 	docker compose run --rm migrate node src/db/seed.ts --reset
 
-test:  ## Run the backend tests in Docker
+test:  ## Run every test in Docker: API, then component and browser tests
 	docker compose --profile test run --rm --build api-test
+	docker compose --profile test run --rm --build web-test

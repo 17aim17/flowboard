@@ -46,6 +46,11 @@ services:
     ports: ['${WEB_PORT:-8080}:80']
     depends_on:
       api: { condition: service_healthy }
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1/ >/dev/null || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   # `make test`: backend tests against the separate flowboard_test database.
   api-test:
@@ -55,6 +60,13 @@ services:
       TEST_DATABASE_URL: postgres://${POSTGRES_USER:-flowboard}:${POSTGRES_PASSWORD:-flowboard}@db:5432/flowboard_test
     depends_on:
       db: { condition: service_healthy }
+
+  # `make test`: component tests and browser tests against the running stack (it uses the demo data).
+  web-test:
+    profiles: [test]
+    build: { context: ., dockerfile: apps/web/Dockerfile, target: test }
+    depends_on:
+      web: { condition: service_healthy }
 
 volumes:
   db-data:
