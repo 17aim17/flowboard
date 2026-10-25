@@ -289,6 +289,26 @@ describe('board ordering', () => {
   });
 });
 
+describe('stale board state', () => {
+  it('refuses neighbors that are no longer next to each other, and changes nothing', async () => {
+    // Backlog's To Do column: Design password reset flow, Audit API rate limits, Add SSO login.
+    expect(await columnTitles('Backlog', 'todo')).toEqual([
+      'Design password reset flow',
+      'Audit API rate limits',
+      'Add SSO login',
+    ]);
+    const before = await taskRow('Migrate image storage');
+    const res = await move('Migrate image storage', {
+      statusKey: 'todo',
+      beforeId: (await taskRow('Design password reset flow')).id,
+      afterId: (await taskRow('Add SSO login')).id, // a client that missed "Audit API rate limits"
+    });
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('STALE_PLACEMENT');
+    expect(await taskRow('Migrate image storage')).toEqual(before);
+  });
+});
+
 describe('listing tasks', () => {
   const allPages = async (url: string) => {
     const titles: string[] = [];
