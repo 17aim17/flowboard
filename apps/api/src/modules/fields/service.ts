@@ -72,13 +72,6 @@ export async function createField(
   if (owner.type === 'workspace') {
     throw invalid('id', 'invalid_owner', 'Custom fields belong to a space, folder or list');
   }
-  const taken = await db
-    .selectFrom('field_definitions')
-    .select('id')
-    .where('key', '=', body.key)
-    .executeTakeFirst();
-  if (taken) throw keyTaken(body.key);
-
   const siblings = await activeFields(db, [owner.id]);
   const row = await db
     .insertInto('field_definitions')
@@ -92,8 +85,11 @@ export async function createField(
       options: JSON.stringify(withOptionIds(body.options)),
       position: placeAmong(siblings, {}),
     })
+    // The unique index decides, so two admins creating the same key at once get a 409, not a 500.
+    .onConflict((oc) => oc.column('key').doNothing())
     .returningAll()
-    .executeTakeFirstOrThrow();
+    .executeTakeFirst();
+  if (!row) throw keyTaken(body.key);
   return toField(row);
 }
 
