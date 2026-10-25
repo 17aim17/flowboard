@@ -4,7 +4,7 @@ A small project-management app: a workspace tree (workspace > space > folder > l
 
 Built for the "Lead Engineer (Full Stack), Tasks module" take-home. Node.js + TypeScript (Fastify) API, React + TypeScript web app, Postgres.
 
-- Demo video: _link added at submission_
+- Demo video: https://youtu.be/TaNQ26_sjKk
 - Design, in plain language: [`docs/DESIGN.md`](docs/DESIGN.md)
 - Every decision with the options I rejected: [`docs/DECISIONS.md`](docs/DECISIONS.md)
 - How AI was used, including its mistakes: [`AI_USAGE.md`](AI_USAGE.md)
