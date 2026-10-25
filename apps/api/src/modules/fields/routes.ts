@@ -1,7 +1,7 @@
 import { ContainerFields, CreateFieldBody, FieldDefinition, Id, UpdateFieldBody } from '@flowboard/contracts';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { assertAdmin } from '../permissions/service.ts';
+import { assertAdmin, assertCanView } from '../permissions/service.ts';
 import {
   createField,
   deleteField,
@@ -17,7 +17,10 @@ export const fieldRoutes: FastifyPluginAsyncZod = async (app) => {
   app.get(
     '/containers/:id/fields',
     { schema: { ...schema, params: Params, response: { 200: ContainerFields } } },
-    (request) => getContainerFields(app.db, request.params.id),
+    async (request) => {
+      await assertCanView(app.db, request.user, request.params.id);
+      return getContainerFields(app.db, request.params.id);
+    },
   );
 
   app.post(
@@ -49,6 +52,9 @@ export const fieldRoutes: FastifyPluginAsyncZod = async (app) => {
     {
       schema: { ...schema, params: Params, response: { 200: z.object({ data: z.array(FieldDefinition) }) } },
     },
-    async (request) => ({ data: await getResolvedFieldsForList(app.db, request.params.id) }),
+    async (request) => {
+      await assertCanView(app.db, request.user, request.params.id);
+      return { data: await getResolvedFieldsForList(app.db, request.params.id) };
+    },
   );
 };

@@ -7,7 +7,7 @@ import {
 } from '@flowboard/contracts';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { assertAdmin } from '../permissions/service.ts';
+import { assertAdmin, assertCanView, filterVisible, loadGrants } from '../permissions/service.ts';
 import {
   archiveContainer,
   createContainer,
@@ -22,11 +22,17 @@ const Params = z.object({ id: Id });
 const schema = { tags: ['hierarchy'] };
 
 export const hierarchyRoutes: FastifyPluginAsyncZod = async (app) => {
-  // A flat list in sibling order; the client nests it by parentId.
+  // A flat list in sibling order, only what the caller can see; the client nests it by parentId.
   app.get(
     '/tree',
     { schema: { ...schema, response: { 200: z.object({ data: z.array(Container) }) } } },
-    async () => ({ data: (await listActiveContainers(app.db)).map(toContainer) }),
+    async (request) => {
+      const [rows, grants] = await Promise.all([
+        listActiveContainers(app.db),
+        loadGrants(app.db, request.user.id),
+      ]);
+      return { data: filterVisible(request.user, rows, grants).map(toContainer) };
+    },
   );
 
   app.post(
@@ -41,7 +47,10 @@ export const hierarchyRoutes: FastifyPluginAsyncZod = async (app) => {
   app.get(
     '/containers/:id',
     { schema: { ...schema, params: Params, response: { 200: Container } } },
-    (request) => getContainer(app.db, request.params.id),
+    async (request) => {
+      await assertCanView(app.db, request.user, request.params.id);
+      return getContainer(app.db, request.params.id);
+    },
   );
 
   app.patch(

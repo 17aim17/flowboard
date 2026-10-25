@@ -114,6 +114,11 @@ export async function getTask(db: Db, taskId: string): Promise<Task> {
   return (await toTasks(db, [row], await resolveFieldsForPath(db, path)))[0]!;
 }
 
+/** The list a task is in, for permission checks. 404 if the task doesn't exist. */
+export async function getTaskListId(db: Db, taskId: string): Promise<string> {
+  return (await getTaskRow(db, taskId)).list_id;
+}
+
 async function getTaskRow(db: Db, taskId: string): Promise<TaskRow> {
   const row = await db.selectFrom('tasks').selectAll().where('id', '=', taskId).executeTakeFirst();
   if (!row) throw notFound('Task');

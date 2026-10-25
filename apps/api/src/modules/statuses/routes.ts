@@ -1,7 +1,7 @@
 import { ContainerStatuses, Id, Key, PutStatusBody, ResolvedStatus } from '@flowboard/contracts';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { assertAdmin } from '../permissions/service.ts';
+import { assertAdmin, assertCanView } from '../permissions/service.ts';
 import { deleteStatus, getContainerStatuses, getResolvedStatusesForList, putStatus } from './service.ts';
 
 const Params = z.object({ id: Id });
@@ -12,7 +12,10 @@ export const statusRoutes: FastifyPluginAsyncZod = async (app) => {
   app.get(
     '/containers/:id/statuses',
     { schema: { ...schema, params: Params, response: { 200: ContainerStatuses } } },
-    (request) => getContainerStatuses(app.db, request.params.id),
+    async (request) => {
+      await assertCanView(app.db, request.user, request.params.id);
+      return getContainerStatuses(app.db, request.params.id);
+    },
   );
 
   app.put(
@@ -36,6 +39,9 @@ export const statusRoutes: FastifyPluginAsyncZod = async (app) => {
   app.get(
     '/lists/:id/resolved-statuses',
     { schema: { ...schema, params: Params, response: { 200: z.object({ data: z.array(ResolvedStatus) }) } } },
-    async (request) => ({ data: await getResolvedStatusesForList(app.db, request.params.id) }),
+    async (request) => {
+      await assertCanView(app.db, request.user, request.params.id);
+      return { data: await getResolvedStatusesForList(app.db, request.params.id) };
+    },
   );
 };
