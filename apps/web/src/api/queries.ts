@@ -1,11 +1,15 @@
 import type {
   Container,
+  CreateFieldBody,
   CreateTaskBody,
   FieldDefinition,
   MoveTaskBody,
+  PutStatusBody,
   ResolvedStatus,
+  StatusDefinition,
   Task,
   TaskSort,
+  UpdateFieldBody,
   UpdateTaskBody,
   User,
 } from '@flowboard/contracts';
@@ -16,6 +20,7 @@ import { api } from './client.ts';
 type Page<T> = { data: T[]; page: { limit: number; nextCursor: string | null; hasMore: boolean } };
 
 export const keys = {
+  me: ['me'],
   users: ['users'],
   tree: ['tree'],
   statuses: (listId: string) => ['lists', listId, 'statuses'],
@@ -24,6 +29,8 @@ export const keys = {
   board: (listId: string) => ['lists', listId, 'tasks', 'board'],
   table: (listId: string, sort: TaskSort) => ['lists', listId, 'tasks', 'table', sort],
   task: (taskId: string) => ['tasks', taskId],
+  containerStatuses: (containerId: string) => ['containers', containerId, 'statuses'],
+  containerFields: (containerId: string) => ['containers', containerId, 'fields'],
 };
 
 /** Follows `page.nextCursor` until the last page. For bounded sets the UI needs whole (users, a board). */
@@ -43,6 +50,8 @@ async function fetchAll<T>(path: string): Promise<T[]> {
 }
 
 // ---------- reads ----------
+
+export const useMe = () => useQuery({ queryKey: keys.me, queryFn: () => api<User>('GET', '/me') });
 
 export const useUsers = () => useQuery({ queryKey: keys.users, queryFn: () => fetchAll<User>('/users') });
 
@@ -91,6 +100,22 @@ export const useTask = (taskId: string | null) =>
     queryKey: keys.task(taskId ?? ''),
     queryFn: () => api<Task>('GET', `/tasks/${taskId}`),
     enabled: taskId !== null,
+  });
+
+type ContainerStatuses = { local: StatusDefinition[]; resolved: ResolvedStatus[] };
+type ContainerFields = { local: FieldDefinition[]; resolved: FieldDefinition[] };
+
+/** A container's own status rows and what it shows after merging (the settings page). */
+export const useContainerStatuses = (containerId: string) =>
+  useQuery({
+    queryKey: keys.containerStatuses(containerId),
+    queryFn: () => api<ContainerStatuses>('GET', `/containers/${containerId}/statuses`),
+  });
+
+export const useContainerFields = (containerId: string) =>
+  useQuery({
+    queryKey: keys.containerFields(containerId),
+    queryFn: () => api<ContainerFields>('GET', `/containers/${containerId}/fields`),
   });
 
 // ---------- writes ----------
@@ -163,5 +188,62 @@ export function useMoveTask(listId: string) {
       notifyError(error, "Couldn't move the task");
     },
     onSettled: (_data, _error, { task }) => refresh(task),
+  });
+}
+
+// ---------- config (admin) ----------
+
+/** A config change can affect every list below the container, so refetch all config and boards. */
+function useRefreshConfig() {
+  const queryClient = useQueryClient();
+  return () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['containers'] }),
+      queryClient.invalidateQueries({ queryKey: ['lists'] }),
+      queryClient.invalidateQueries({ queryKey: ['tasks'] }),
+    ]);
+}
+
+export function usePutStatus(containerId: string) {
+  const refresh = useRefreshConfig();
+  return useMutation({
+    mutationFn: ({ key, body }: { key: string; body: PutStatusBody }) =>
+      api<ContainerStatuses>('PUT', `/containers/${containerId}/statuses/${key}`, body),
+    onSuccess: refresh,
+  });
+}
+
+export function useDeleteStatus(containerId: string) {
+  const refresh = useRefreshConfig();
+  return useMutation({
+    mutationFn: (key: string) =>
+      api<ContainerStatuses>('DELETE', `/containers/${containerId}/statuses/${key}`),
+    onSuccess: refresh,
+  });
+}
+
+export function useCreateField(containerId: string) {
+  const refresh = useRefreshConfig();
+  return useMutation({
+    mutationFn: (body: CreateFieldBody) =>
+      api<FieldDefinition>('POST', `/containers/${containerId}/fields`, body),
+    onSuccess: refresh,
+  });
+}
+
+export function useUpdateField() {
+  const refresh = useRefreshConfig();
+  return useMutation({
+    mutationFn: ({ fieldId, body }: { fieldId: string; body: UpdateFieldBody }) =>
+      api<FieldDefinition>('PATCH', `/fields/${fieldId}`, body),
+    onSuccess: refresh,
+  });
+}
+
+export function useDeleteField() {
+  const refresh = useRefreshConfig();
+  return useMutation({
+    mutationFn: (fieldId: string) => api<void>('DELETE', `/fields/${fieldId}`),
+    onSuccess: refresh,
   });
 }
