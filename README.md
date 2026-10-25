@@ -228,7 +228,7 @@ curl -s $API/lists/$ONCALL/tasks -H 'X-User-Id: bob'
 - Custom field filters: a GIN index on `tasks.custom_fields` handles "equals" filters (`custom_fields @> '{"severity":"high"}'`). Ranges on dates or numbers would need expression indexes per field, or a search engine.
 - Status and field resolution read a handful of rows per request. Not cached yet; if it shows up in profiles, cache the result per list and clear it on config change.
 
-**Async / IPC (stretch goal 2, designed, not built):** an `outbox` table written in the same transaction as each task change, and a worker that claims rows with `FOR UPDATE SKIP LOCKED`, writes the activity feed idempotently (keyed by event id), and retries with backoff. Delivery is at least once, consumers are idempotent, and the feed is eventually consistent (about a second behind). No new infrastructure is needed; the same events later feed a broker. Details: DESIGN.md section 12, D-16.
+**Async / IPC (designed, not built; the PDF accepts a documented plan):** an `outbox` table written in the same transaction as each task change, and a worker that claims rows with `FOR UPDATE SKIP LOCKED`, writes the activity feed idempotently (keyed by event id), and retries with backoff. Delivery is at least once, consumers are idempotent, and the feed is eventually consistent (about a second behind). No new infrastructure is needed; the same events later feed a broker. Details: DESIGN.md section 12, D-16.
 
 **What I'd split out in weeks 2-4, and why:**
 
@@ -240,7 +240,7 @@ Tasks, the tree and permissions stay together: every task write needs all three 
 
 ## Trade-offs
 
-**Stretch goals:** (1) optimistic drag and drop with conflict handling is **built** (the card moves at once; on a 409 it snaps back, a toast explains, and the board reloads). (2) the activity feed through an outbox and worker is **designed, not built**.
+**Stretch goal (one, by choice):** optimistic drag and drop with conflict handling. The card moves at once; on a 409 it snaps back, a toast explains, and the board reloads. I chose to spend the remaining time on the required parts (permissions, settings UI, tests, docs) rather than a second stretch goal. The activity feed is designed (outbox and worker, above) but not built.
 
 **What I cut or simplified, on purpose:**
 

@@ -12,7 +12,7 @@ Three rules make it more than a CRUD app:
 2. **Custom fields depend on where a list sits.** A task in one list may have an "Estimate" field, and a task in another list a "Channel" field.
 3. **Users see different parts of the tree.** Bob can't see what Alice can see.
 
-Scope is exactly the PDF. Stretch goals (the PDF allows two): **optimistic drag-and-drop with conflict handling**, and, **only if time allows** after all required work and tests pass, **an activity feed built by a background worker**. If time runs out, the async path stays as a written design (the PDF accepts this). Deploy and other extras come after submission.
+Scope is exactly the PDF. One stretch goal (the PDF allows up to two): **optimistic drag-and-drop with conflict handling**. The async path (an activity feed built by a background worker) is a written design, not built; the PDF accepts a documented IPC plan (section 12). Deploy and other extras come after submission.
 
 ## 2. Choices I made where the assignment was open
 
@@ -43,7 +43,7 @@ flowchart LR
 
 - **Browser and curl are untrusted.** Anything they send is checked.
 - **The API** checks who you are on every request (section 9), checks permission (section 8), validates the input, then reads or writes the database.
-- **The worker** (stretch goal 2, not built) would be a second small process. It would read events that the API saved and turn them into the activity feed (section 12).
+- **The worker** (designed, not built) would be a second small process. It would read events that the API saved and turn them into the activity feed (section 12).
 - **nginx** serves the built React files and forwards `/v1` calls to the API, so the browser talks to one address (no CORS setup needed).
 
 ### Opening a board, then dragging a card
@@ -312,15 +312,15 @@ In words: you see a list only if you're allowed at every step of its path. A den
 | `tasks`              | tasks                                           | `list_id`, `status_key`, `priority`, `due_date`, `custom_fields` (JSON), `position`, `version`  |
 | `task_assignees`     | who is on which task                            | one row per (task, user)                                                                        |
 | `grants`             | allow/deny per user per container               | one row per (container, user)                                                                   |
-| `outbox`             | events like "task moved", saved with the change | only if time allows: read by the worker                                                         |
-| `activity`           | the activity feed                               | only if time allows: written by the worker                                                      |
+| `outbox`             | events like "task moved", saved with the change | planned, not built: read by the worker                                                          |
+| `activity`           | the activity feed                               | planned, not built: written by the worker                                                       |
 
 - **IDs** are UUIDs that Postgres generates in time order (`uuidv7()`).
 - **Custom field values** live in a JSON column on the task. Postgres can still search inside it with an index.
 - **Indexes** (pre-sorted lookups) cover the common reads: children of a container, tasks of a list by column and order, tasks by due date and priority, and searching inside custom field values.
 - **What the database can't check by itself:** whether a task's status and field values are valid for its list. That depends on the whole path, so the API checks it inside the same transaction as the save.
 
-## 12. Activity feed (background worker, only if time allows)
+## 12. Activity feed (background worker, designed, not built)
 
 1. When the API saves a task change, it also saves an event row in `outbox`, in the same transaction. Either both are saved or neither is.
 2. The worker checks `outbox` every second, takes a batch of new events, writes an `activity` row for each ("Alice moved Fix login to Done"), and marks the event done.
@@ -446,7 +446,7 @@ Each step is committed with its tests:
 - (d) permissions (T1)
 - (e) frontend: sidebar, board, table, drawer, settings
 - (f) browser and component tests
-- (g) stretch goals: optimistic drag-and-drop first, then the activity feed only if time allows
+- (g) one stretch goal: optimistic drag-and-drop (the activity feed stays a written design)
 - (h) README, AI_USAGE.md, interview prep notes
 
 ## 18. Later (beyond the PDF, not built now)

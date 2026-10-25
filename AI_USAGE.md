@@ -85,3 +85,4 @@ Corrections:
   - The first Playwright test pressed Escape to close the drawer after a reload, before the drawer had reopened from the URL, then clicked a card under the drawer's overlay. The test now checks the value in the reopened drawer, which is also the stronger check.
   - The test setup's browser polyfills failed lint (`unbound-method`) and then typecheck in two rounds; they are now plain assignments, since they only run in jsdom.
 - **Doc corrections:** DESIGN.md still listed a grants API and a worker that were never built. The grants API moved to "Later"; the worker is marked as planned.
+- **Scope decision:** after reviewing the list of stretch goals, I decided to keep only one (optimistic drag-and-drop with conflict handling). The activity feed stays a documented design. The AI updated README, DESIGN and D-16 to say so.

@@ -128,7 +128,7 @@ Each entry covers the decision, why I made it, what I rejected, the trade-off, a
 
 ## D-16 Outbox table + polling worker for async work
 
-- **Scope:** built only if time allows after the MVP and required tests pass. Otherwise this stays a written design, which the PDF accepts (engineering expectation 6).
+- **Scope:** not built. On 2026-10-25 I decided to keep one stretch goal (optimistic drag-and-drop), so this stays a written design, which the PDF accepts (engineering expectation 6).
 
 - **Decision:** Domain writes insert an `outbox` row in the same transaction. A separate worker process claims rows with `FOR UPDATE SKIP LOCKED`, writes `activity` idempotently (`ON CONFLICT (event_id) DO NOTHING`), and retries with backoff.
 - **Why:** No dual-write problem, because the event exists if and only if the change committed. There's no new infrastructure (Postgres is already there), and delivery is at least once with idempotent consumers. This is the standard shape that later feeds a real broker.
