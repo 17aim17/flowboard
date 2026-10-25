@@ -1,4 +1,5 @@
 import type { GrantMode, User } from '@flowboard/contracts';
+import type { FastifyRequest } from 'fastify';
 import type { Db } from '../../db/db.ts';
 import type { ContainerRow } from '../../db/types.ts';
 import { forbidden } from '../../lib/errors.ts';
@@ -9,6 +10,9 @@ export function assertAdmin(user: User): void {
   if (user.role !== 'admin')
     throw forbidden('Only admins can change containers, statuses, fields and grants');
 }
+
+/** Route hook for admin-only routes. Runs before body validation, so a member gets 403, not 400. */
+export const adminOnly = async (request: FastifyRequest) => assertAdmin(request.user);
 
 type Grants = Map<string, GrantMode>; // container id -> allow | deny, for one user
 

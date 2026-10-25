@@ -1,7 +1,7 @@
 import { ContainerStatuses, Id, Key, PutStatusBody, ResolvedStatus } from '@flowboard/contracts';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { assertAdmin, assertCanView } from '../permissions/service.ts';
+import { adminOnly, assertCanView } from '../permissions/service.ts';
 import { deleteStatus, getContainerStatuses, getResolvedStatusesForList, putStatus } from './service.ts';
 
 const Params = z.object({ id: Id });
@@ -20,20 +20,20 @@ export const statusRoutes: FastifyPluginAsyncZod = async (app) => {
 
   app.put(
     '/containers/:id/statuses/:key',
-    { schema: { ...schema, params: KeyParams, body: PutStatusBody, response: { 200: ContainerStatuses } } },
-    (request) => {
-      assertAdmin(request.user);
-      return putStatus(app.db, request.params.id, request.params.key, request.body);
+    {
+      preValidation: adminOnly,
+      schema: { ...schema, params: KeyParams, body: PutStatusBody, response: { 200: ContainerStatuses } },
     },
+    (request) => putStatus(app.db, request.params.id, request.params.key, request.body),
   );
 
   app.delete(
     '/containers/:id/statuses/:key',
-    { schema: { ...schema, params: KeyParams, response: { 200: ContainerStatuses } } },
-    (request) => {
-      assertAdmin(request.user);
-      return deleteStatus(app.db, request.params.id, request.params.key);
+    {
+      preValidation: adminOnly,
+      schema: { ...schema, params: KeyParams, response: { 200: ContainerStatuses } },
     },
+    (request) => deleteStatus(app.db, request.params.id, request.params.key),
   );
 
   app.get(

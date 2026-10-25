@@ -1,7 +1,7 @@
 import { ContainerFields, CreateFieldBody, FieldDefinition, Id, UpdateFieldBody } from '@flowboard/contracts';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { assertAdmin, assertCanView } from '../permissions/service.ts';
+import { adminOnly, assertCanView } from '../permissions/service.ts';
 import {
   createField,
   deleteField,
@@ -25,27 +25,32 @@ export const fieldRoutes: FastifyPluginAsyncZod = async (app) => {
 
   app.post(
     '/containers/:id/fields',
-    { schema: { ...schema, params: Params, body: CreateFieldBody, response: { 201: FieldDefinition } } },
+    {
+      preValidation: adminOnly,
+      schema: { ...schema, params: Params, body: CreateFieldBody, response: { 201: FieldDefinition } },
+    },
     async (request, reply) => {
-      assertAdmin(request.user);
       return reply.status(201).send(await createField(app.db, request.params.id, request.body));
     },
   );
 
   app.patch(
     '/fields/:id',
-    { schema: { ...schema, params: Params, body: UpdateFieldBody, response: { 200: FieldDefinition } } },
-    (request) => {
-      assertAdmin(request.user);
-      return updateField(app.db, request.params.id, request.body);
+    {
+      preValidation: adminOnly,
+      schema: { ...schema, params: Params, body: UpdateFieldBody, response: { 200: FieldDefinition } },
     },
+    (request) => updateField(app.db, request.params.id, request.body),
   );
 
-  app.delete('/fields/:id', { schema: { ...schema, params: Params } }, async (request, reply) => {
-    assertAdmin(request.user);
-    await deleteField(app.db, request.params.id);
-    return reply.status(204).send();
-  });
+  app.delete(
+    '/fields/:id',
+    { preValidation: adminOnly, schema: { ...schema, params: Params } },
+    async (request, reply) => {
+      await deleteField(app.db, request.params.id);
+      return reply.status(204).send();
+    },
+  );
 
   app.get(
     '/lists/:id/resolved-fields',

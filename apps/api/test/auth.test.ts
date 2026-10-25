@@ -29,6 +29,11 @@ describe('auth boundary', () => {
     expect(res.status).toBe(403);
     expect(res.body.error.code).toBe('FORBIDDEN');
   });
+
+  it('checks the role before the body: a member with a bad payload gets 403, not 400', async () => {
+    const res = await bob('POST', '/containers', { type: 'nope', parentId: 'not-a-uuid' });
+    expect(res.status).toBe(403);
+  });
 });
 
 describe('API conventions', () => {

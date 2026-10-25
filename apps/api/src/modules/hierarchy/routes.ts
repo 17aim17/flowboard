@@ -7,7 +7,7 @@ import {
 } from '@flowboard/contracts';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { z } from 'zod';
-import { assertAdmin, assertCanView, filterVisible, loadGrants } from '../permissions/service.ts';
+import { adminOnly, assertCanView, filterVisible, loadGrants } from '../permissions/service.ts';
 import {
   archiveContainer,
   createContainer,
@@ -37,9 +37,11 @@ export const hierarchyRoutes: FastifyPluginAsyncZod = async (app) => {
 
   app.post(
     '/containers',
-    { schema: { ...schema, body: CreateContainerBody, response: { 201: Container } } },
+    {
+      preValidation: adminOnly,
+      schema: { ...schema, body: CreateContainerBody, response: { 201: Container } },
+    },
     async (request, reply) => {
-      assertAdmin(request.user);
       return reply.status(201).send(await createContainer(app.db, request.body));
     },
   );
@@ -55,25 +57,28 @@ export const hierarchyRoutes: FastifyPluginAsyncZod = async (app) => {
 
   app.patch(
     '/containers/:id',
-    { schema: { ...schema, params: Params, body: UpdateContainerBody, response: { 200: Container } } },
-    (request) => {
-      assertAdmin(request.user);
-      return updateContainer(app.db, request.params.id, request.body);
+    {
+      preValidation: adminOnly,
+      schema: { ...schema, params: Params, body: UpdateContainerBody, response: { 200: Container } },
+    },
+    (request) => updateContainer(app.db, request.params.id, request.body),
+  );
+
+  app.delete(
+    '/containers/:id',
+    { preValidation: adminOnly, schema: { ...schema, params: Params } },
+    async (request, reply) => {
+      await archiveContainer(app.db, request.params.id);
+      return reply.status(204).send();
     },
   );
 
-  app.delete('/containers/:id', { schema: { ...schema, params: Params } }, async (request, reply) => {
-    assertAdmin(request.user);
-    await archiveContainer(app.db, request.params.id);
-    return reply.status(204).send();
-  });
-
   app.post(
     '/containers/:id/move',
-    { schema: { ...schema, params: Params, body: MoveContainerBody, response: { 200: Container } } },
-    (request) => {
-      assertAdmin(request.user);
-      return moveContainer(app.db, request.params.id, request.body);
+    {
+      preValidation: adminOnly,
+      schema: { ...schema, params: Params, body: MoveContainerBody, response: { 200: Container } },
     },
+    (request) => moveContainer(app.db, request.params.id, request.body),
   );
 };
