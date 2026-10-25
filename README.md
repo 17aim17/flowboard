@@ -4,6 +4,7 @@ A small project-management app: a workspace tree (workspace > space > folder > l
 
 Built for the "Lead Engineer (Full Stack), Tasks module" take-home. Node.js + TypeScript (Fastify) API, React + TypeScript web app, Postgres.
 
+- Demo video: _link added at submission_
 - Design, in plain language: [`docs/DESIGN.md`](docs/DESIGN.md)
 - Every decision with the options I rejected: [`docs/DECISIONS.md`](docs/DECISIONS.md)
 - How AI was used, including its mistakes: [`AI_USAGE.md`](AI_USAGE.md)
@@ -43,7 +44,7 @@ make test
 
 Runs, in Docker:
 
-1. **API tests** (77): every request goes through the real HTTP stack (`app.inject`) against a real Postgres test database, reset and re-seeded before each test. They cover the PDF's scenarios (permissions, sibling lists resolving differently, unknown status, cross-list move, field type and option checks, required fields, in-use status safety) plus field changes, stale versions, ordering and paging. Pure logic (status merging, the field validator) also has unit tests.
+1. **API and unit tests** (80 API, 10 validator): every API request goes through the real HTTP stack (`app.inject`) against a real Postgres test database, reset and re-seeded before each test. They cover the PDF's scenarios (permissions, sibling lists resolving differently, unknown status, cross-list move, field type and option checks, required fields, in-use status safety) plus field changes, stale versions, ordering and paging. Pure logic (status merging, the shared field validator) has unit tests too. 41 of the HTTP tests are negative: they assert the refusal (status code, error code, the `details` path) and, for refused writes, that the database row is unchanged.
 2. **Component test** (7): each custom field type renders the right input and sends the value in the shape the API expects.
 3. **Browser tests** (2, Playwright): open Sprint 12, check its four columns, edit Estimate, save, reload and see the value persisted. Then: Alice sees the private "Launch Content" list, switching to Bob removes it, and opening its URL directly shows "no access".
 
@@ -77,6 +78,24 @@ flowchart LR
 - **Where permissions are enforced:** in the API, in every route that takes a container, list or task id, before any work (`apps/api/src/modules/permissions/service.ts`). The tree endpoint returns only what the user can see. The UI hides things too, but that's only convenience.
 - **Where statuses and custom fields are resolved:** in the API, on every read and write, by walking the list's path from the workspace down (`modules/statuses/resolve.ts`, `modules/fields/service.ts`). Nothing is cached, so a config change shows up on the next request.
 - **Shared contracts:** `packages/contracts` holds the request and response schemas and the custom field validator. The API and the web app import the same code, so the form can't accept what the API would reject.
+
+**Where statuses and custom fields live relative to the tree:**
+
+```mermaid
+flowchart TB
+  W["Workspace: Flowboard"] --> S1["Space: Engineering"]
+  S1 --> F1["Folder: Q4 Launch"]
+  F1 --> L1["List: Backlog"]
+  F1 --> L2["List: Sprint 12"]
+  WS[/"statuses: todo, in_progress, done, closed"/] -.- W
+  S1F[/"field: estimate"/] -.- S1
+  F1F[/"fields: severity (required), component"/] -.- F1
+  L2S[/"statuses: + in_review, done renamed Shipped, closed hidden<br/>field: needs_qa"/] -.- L2
+  L2 ==> R["API, on every read and write:<br/>walk the path workspace to list,<br/>merge statuses by key, add up fields"]
+  R ==> B["Sprint 12 board: To Do, In Progress, In Review, Shipped<br/>fields: estimate, severity, component, needs_qa"]
+```
+
+Status and field definitions are rows attached to a container (`status_definitions.container_id`, `field_definitions.container_id`). Nothing is copied into lists: a list's columns and fields are computed from its path when needed, so a change at the space level reaches every list below it on the next request.
 
 **Loading a board, then dragging a card:**
 
@@ -223,8 +242,8 @@ curl -s $API/lists/$ONCALL/tasks -H 'X-User-Id: bob'
 **Queries and indexes:**
 
 - Tree: `containers (parent_id, position)`; the path to a list is a short recursive query (at most four levels).
-- Board: `tasks (list_id, status_key, position, id)`, so one column is one index range.
-- Table sorts: `tasks (list_id, due_date, id)` and `(list_id, priority, id)`; cursors are keyset-based, so page 100 is as fast as page 1.
+- Board: the web app loads a list's tasks in board order and groups them by column; `tasks (list_id, status_key, position, id)` makes loading one column (`?statusKey=`, for very large lists) a single index range.
+- Table sorts: `tasks (list_id, coalesce(due_date, 'infinity'), id)` (the same expression the query sorts by, so undated tasks come last) and `(list_id, priority, id)`. Cursors are keyset-based (`WHERE (sort value, id) > cursor`), so a deep page is an index range, not an OFFSET scan.
 - Custom field filters: a GIN index on `tasks.custom_fields` handles "equals" filters (`custom_fields @> '{"severity":"high"}'`). Ranges on dates or numbers would need expression indexes per field, or a search engine.
 - Status and field resolution read a handful of rows per request. Not cached yet; if it shows up in profiles, cache the result per list and clear it on config change.
 

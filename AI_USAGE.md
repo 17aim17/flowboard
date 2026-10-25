@@ -9,8 +9,8 @@ Tool: Claude Code (Claude Opus 5.5) in the terminal, used as a pair programmer. 
 - **Prompt:** A written brief with my preferred stack and policies, plus the assignment PDF, asking for `docs/DESIGN.md` before any code. A follow-up added JD context: reliability and observability basics, UX states, keyboard-accessible drag-and-drop, a CRM evolution section, and deploy as a stretch goal.
 - **AI produced:** `docs/DESIGN.md` and `docs/DECISIONS.md`.
 - **Corrections / rejections:**
-  - The AI tried to fit a third stretch goal (deploy) on top of the PDF's limit of two, and asked me to choose. I told it to follow the assignment. Scope is now exactly the PDF: two stretch goals (optimistic drag-and-drop, activity feed via outbox), with deploy and the other extras deferred.
-  - The assignment PDF is kept in `docs/` under its original filename as the single source of truth.
+  - The AI tried to fit a third stretch goal (deploy) on top of the PDF's limit of two, and asked me to choose. I told it to follow the assignment. Scope is now exactly the PDF: two stretch goals (optimistic drag-and-drop, activity feed via outbox), with deploy and the other extras deferred. (Later reduced to one stretch goal; see 2026-10-25.)
+  - The assignment PDF is the single source of truth. It's kept locally and not committed.
 
 ### 2026-10-23: tooling and library review
 
@@ -63,7 +63,7 @@ Corrections:
 ### 2026-10-24: day 2, web app
 
 - **Built:** the React app (sidebar tree, kanban board with drag and drop and a keyboard "Move" menu, list view with server-side sort and paging, task drawer with generated custom field inputs) and an nginx image serving it on :8080.
-- **Checked in a real browser** (Chrome DevTools): Sprint 12 and Backlog show different columns; a drag saved on the server with the expected fractional position; editing a custom field saved and bumped the version; a missing required field was blocked in the form with the same message as the API; the table sorted by due date with undated tasks last. **Stretch goal 1 (optimistic UI + conflict handling):** Carol changed a task through the API, then dragging the stale card on Alice's board snapped it back, showed "Someone else just changed this task" and reloaded the board with Carol's change.
+- **Checked in a real browser** (Chrome DevTools): Sprint 12 and Backlog show different columns; a drag saved on the server with the expected fractional position; editing a custom field saved and bumped the version; a missing required field was blocked in the form with the same message as the API; the table sorted by due date with undated tasks last. **The stretch goal (optimistic UI + conflict handling):** Carol changed a task through the API, then dragging the stale card on Alice's board snapped it back, showed "Someone else just changed this task" and reloaded the board with Carol's change.
 - **AI mistakes caught:**
   - The API container's healthcheck had failed since day 1: `localhost` resolves to IPv6 in Alpine while the API listens on IPv4. Nothing depended on API health until the web service did. Fixed by probing `127.0.0.1`.
   - A first draft of the board had an `isNoop` helper that compared the wrong columns, and the "Move down" and "Move to column" menu actions could go out of range. Both were caught in self-review before running.
@@ -73,7 +73,7 @@ Corrections:
 ### 2026-10-25: day 3, permissions, settings UI, frontend tests
 
 - **Prompt:** "Do day 3, and tell me what you're planning and any assumptions you're going to make." The AI listed the plan and 8 assumptions first (keep the D-15 rule, 403 for hidden but existing, moves need access to both lists, members can read config but not change it, any user can be assigned, settings reorder via buttons, no UI for creating containers, the activity feed only if time is left), then built it.
-- **Questions I asked along the way:** the testing strategy for backend and frontend; whether spaces and lists can be reordered (API yes, UI no, moved to "Later"); what the lock icon means; whether "Flowboard" is the workspace and whether there can be more than one. The multi-tenant answer was added to DESIGN.md section 18.
+- **Questions I asked along the way:** the testing strategy for backend and frontend; whether spaces and lists can be reordered (API yes, UI no, moved to "Later"); what the lock icon means; whether "Flowboard" is the workspace and whether there can be more than one. The multi-tenant answer was added to DESIGN.md section 16.
 - **Built:** view permissions on the tree and every read and write (9 tests for T1); a settings page for statuses and custom fields at any level; a component test for custom field inputs; two Playwright tests; `make test` running everything in Docker.
 - **Mutation checks:** with the permission check forced to "allow", the 5 direct-access T1 tests fail. With the number input reporting a string, the component test fails.
 - **Bugs found while checking in the browser:**
@@ -86,3 +86,19 @@ Corrections:
   - The test setup's browser polyfills failed lint (`unbound-method`) and then typecheck in two rounds; they are now plain assignments, since they only run in jsdom.
 - **Doc corrections:** DESIGN.md still listed a grants API and a worker that were never built. The grants API moved to "Later"; the worker is marked as planned.
 - **Scope decision:** after reviewing the list of stretch goals, I decided to keep only one (optimistic drag-and-drop with conflict handling). The activity feed stays a documented design. The AI updated README, DESIGN and D-16 to say so.
+
+### 2026-10-25: review by a second agent, and a mutation sweep
+
+- **Prompt:** "Get everything reviewed by a subagent with respect to the assignment's must-haves." A separate agent with no context from this session read the PDF, the code and the docs, ran `make test`, and probed the running app.
+- **It found every must-have implemented, plus these real gaps, all fixed:**
+  - `PATCH /tasks/:id` accepted `statusKey` and silently ignored it (200). PDF scenario 3 expects a 400 for an unknown status on update. Task bodies are now strict, with a test.
+  - The due-date index didn't match the sort expression (`coalesce(due_date, 'infinity')`), so the README's "deep pages are as fast" claim was false for that sort. New migration with an expression index; checked with `EXPLAIN` that the keyset query is an index scan.
+  - The diagram didn't show where statuses and fields attach to the tree (the PDF asks for it). Added to the README.
+  - A member sending a malformed body to an admin route got 400 instead of 403. The role is now checked in a `preValidation` hook, with a test.
+  - Two admins creating the same field key at once could get a 500. The insert now uses `ON CONFLICT DO NOTHING` and returns 409.
+  - The validator unit tests weren't part of `make test`, although the README said so. Added.
+  - The browser test left a changed value in the demo data. It now puts it back.
+  - Doc contradictions: the 409 VERSION_CONFLICT payload, "restorable" containers, a dead link to the uncommitted PDF, section numbers, and old stretch goal wording.
+- **Not changed, on purpose:** required fields stay non-retroactive on update (D-09); the `Co-Authored-By` trailer stays (I approved it on day 1).
+- **Prompt:** "Make sure whatever tests you have written are meaningful." The AI broke 25 rules in the code one at a time (type checks, required fields, unknown status, versions, in-use checks, key conflicts, the category invariant, tree filtering, direct-access checks, admin-only, 401, stale neighbors) and ran the suites each time. 24 were caught. Removing the "neighbors must be adjacent" check failed no test, so a test for it was added.
+- **AI mistake:** the mutation script restored files with `git checkout`, which also threw away uncommitted edits. It reverted the new admin hook right before a commit (the commit didn't compile; caught before pushing and amended) and a just-written fix, which was redone. The script now restores from an in-memory copy.

@@ -1,6 +1,6 @@
 # Flowboard design
 
-Written 2026-10-23, updated 2026-10-25 to match the built code. The assignment PDF (`docs/lead-engineer-tasks-module-take-home-candidate.pdf`) is the source of truth. The "why" behind each choice is in `docs/DECISIONS.md` (D-01, D-02, ...).
+Written 2026-10-23, updated 2026-10-25 to match the built code. The assignment PDF (provided by the company, not committed to this repo) is the source of truth. The "why" behind each choice is in `docs/DECISIONS.md` (D-01, D-02, ...).
 
 ## 1. What we are building
 
@@ -26,7 +26,7 @@ Scope is exactly the PDF. One stretch goal (the PDF allows up to two): **optimis
 | What happens if you delete a custom field that tasks use?    | The field is hidden. Task values are kept but not shown.                               | Cheap, reversible, no mass data rewrite.                                                             | D-09 |
 | What happens when a task moves to a list without its status? | Map it to a status of the same kind. If there's none, refuse.                          | Keeps "this is in progress" true across lists.                                                       | D-10 |
 | Who can change statuses, fields, containers and permissions? | Admins only. Members work on tasks.                                                    | Simplest safe rule.                                                                                  | D-13 |
-| Delete a container?                                          | Archived (hidden, restorable). Tasks are deleted for real.                             | Archiving a whole folder must be undoable.                                                           | D-11 |
+| Delete a container?                                          | Archived (hidden; restore is later work). Tasks are deleted for real.                  | Archiving a whole folder must be undoable.                                                           | D-11 |
 | A field becomes required later. Do old tasks break?          | No. Required is checked when creating or moving a task, and you can't clear the value. | Otherwise every old task fails on an unrelated edit, like a drag.                                    | D-09 |
 | Two people edit the same task at once?                       | Each save sends the task's `version`. A stale version is refused (409).                | No silent overwrites.                                                                                | D-22 |
 
@@ -223,7 +223,7 @@ A task has `title` (required, max 500), `description`, `statusKey`, `priority` (
 **Two people saving at once:**
 
 - Every save must send the `version` the client loaded.
-- If someone saved first, the version no longer matches, and the server returns 409 `VERSION_CONFLICT` with the latest task. The UI reloads it.
+- If someone saved first, the version no longer matches, and the server returns 409 `VERSION_CONFLICT` with the current version in `details`. The UI reloads the task.
 
 ## 8. Who can see what
 
@@ -267,6 +267,8 @@ In words: you see a list only if you're allowed at every step of its path. A den
 
 - Everything is under `/v1`. A breaking change would go to `/v2`.
 - Errors always look like `{ "error": { "code", "message", "details"? } }`.
+- Task bodies are strict: an unknown key is a 400, not silently ignored. For example `statusKey` on `PATCH /tasks/:id` is refused, because status changes go through `/move`.
+- Admin-only routes check the role before validating the body, so a member gets 403 even with a malformed payload.
 - Status codes:
   - 400: bad input
   - 401: not logged in
@@ -350,7 +352,7 @@ React + TypeScript + Vite, built as a single-page app: static files served by ng
 - TanStack Query for server data
 - React Router (the selected list, view and open task live in the URL)
 - Pragmatic drag and drop (Atlassian's library behind Jira and Trello boards)
-- React Hook Form + Zod for forms
+- React Hook Form for forms, validated with the shared custom field validator from `packages/contracts`
 - Mantine for ready-made UI components
 
 **Screens:**

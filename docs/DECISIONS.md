@@ -168,7 +168,7 @@ Each entry covers the decision, why I made it, what I rejected, the trade-off, a
 
 ## D-22 `version` is required on task updates and moves
 
-- **Decision:** PATCH and move must include the version the client last saw. A mismatch returns 409 `VERSION_CONFLICT` with the current task.
+- **Decision:** PATCH and move must include the version the client last saw. A mismatch returns 409 `VERSION_CONFLICT` with `details: [{ currentVersion }]`; the client reloads the task.
 - **Why:** Prevents lost updates between two people editing the same task. It's also the conflict signal for optimistic drag-and-drop.
 - **Rejected:** Last write wins (silent data loss). `If-Match` ETags (more HTTP-native, but clumsier in curl and the CLI). Easy to add later as an alternative.
 
@@ -248,6 +248,7 @@ Each entry covers the decision, why I made it, what I rejected, the trade-off, a
 - **Why:** One explicit line per route is easy to review ("does this route check access?") and keeps the service functions about domain rules only. Checking before the write means a refused request touches nothing.
 - **Rejected:** A Fastify hook that guesses the resource from the URL (hides the check, and task routes need a lookup anyway). Filtering in SQL with a recursive query joined to grants (faster for huge trees, but harder to read and test than one function over at most a few hundred rows).
 - **Trade-off:** The check runs outside the write transaction, so a grant removed in the same millisecond could let one write through. Grants change rarely, and the next request is refused. Each request also loads the path and grants again (two small indexed queries).
+- **Admin-only routes** use a `preValidation` hook (`adminOnly`), so the role is checked before the body: a member gets 403, never a 400 that hints at the payload shape.
 - **Revisit:** If permission queries show up in profiles, cache grants per user for a few seconds, or move the check into the transaction that already locks the path (D-14).
 
 ## D-35 Settings: one admin page per container, reorder with buttons
