@@ -12,8 +12,8 @@ RUN pnpm install --frozen-lockfile --filter @flowboard/api...
 COPY tsconfig.base.json ./
 COPY packages/contracts packages/contracts
 COPY apps/api apps/api
-WORKDIR /app/apps/api
-CMD ["pnpm", "test"]
+# The shared validator's unit tests run here too.
+CMD ["pnpm", "--filter", "@flowboard/contracts", "--filter", "@flowboard/api", "test"]
 
 # Production dependencies only. Node runs the TypeScript sources directly (decision D-26).
 FROM base AS prod
