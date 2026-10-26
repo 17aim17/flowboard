@@ -4,6 +4,7 @@ A small project-management app: a workspace tree (workspace > space > folder > l
 
 Built for the "Lead Engineer (Full Stack), Tasks module" take-home. Node.js + TypeScript (Fastify) API, React + TypeScript web app, Postgres.
 
+- Live demo: https://flowboard-web-l6c1.onrender.com (free plan: the first load after a quiet spell can take about a minute)
 - Demo video: https://youtu.be/TaNQ26_sjKk
 - Design, in plain language: [`docs/DESIGN.md`](docs/DESIGN.md)
 - Every decision with the options I rejected: [`docs/DECISIONS.md`](docs/DECISIONS.md)
