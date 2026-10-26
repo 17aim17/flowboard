@@ -21,9 +21,9 @@ services:
     dockerfilePath: ./apps/web/Dockerfile
     dockerContext: .
     envVars:
-      # The API's public URL. If Render gives the API another name, change this and redeploy the web service.
+      # The API's public URL (Render added the suffix). Change it if the API gets a new URL.
       - key: API_UPSTREAM
-        value: https://flowboard-api.onrender.com
+        value: https://flowboard-api-22sn.onrender.com
       - key: PORT
         value: '80'
 
