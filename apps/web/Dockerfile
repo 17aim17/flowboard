@@ -27,7 +27,7 @@ CMD ["sh", "-c", "pnpm test && pnpm e2e"]
 
 # Static files only: nginx serves the app and proxies the API on the same origin (no CORS).
 FROM nginx:1.29-alpine
-# Where /v1 goes. A host other than Docker Compose sets its own (Railway: api.railway.internal:3000).
-ENV API_UPSTREAM=api:3000
+# Where /v1 goes. Another host sets its own (Render: the API's https URL, see render.yaml).
+ENV API_UPSTREAM=http://api:3000
 COPY apps/web/nginx.conf /etc/nginx/templates/default.conf.template
 COPY --from=build /app/apps/web/dist /usr/share/nginx/html
