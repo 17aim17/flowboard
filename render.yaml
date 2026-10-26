@@ -8,7 +8,7 @@ services:
     dockerfilePath: ./apps/api/Dockerfile
     dockerContext: .
     # The free plan has no pre-deploy step, so migrations and the seed (only on an empty database) run on start.
-    dockerCommand: sh -c "node src/db/migrate.ts && node src/db/seed.ts && node src/server.ts"
+    dockerCommand: sh src/db/start.sh
     healthCheckPath: /ready
     envVars:
       - key: DATABASE_URL
