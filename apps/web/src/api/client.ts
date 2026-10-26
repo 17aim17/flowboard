@@ -24,6 +24,19 @@ export class ApiError extends Error {
 
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
+let lastWake = 0;
+
+/**
+ * On a free-plan host the API sleeps, and calls forwarded by nginx get 502 without waking it. A
+ * direct browser request does wake it: /wake redirects to the API's public /health. At most once
+ * every 30 seconds; the query retries pick the API up once it is back.
+ */
+function wakeApi() {
+  if (Date.now() - lastWake < 30_000) return;
+  lastWake = Date.now();
+  void fetch('/wake', { mode: 'no-cors' }).catch(() => undefined);
+}
+
 /** Calls the API as the user picked in the header. The server resolves who that is. */
 export async function api<T>(method: Method, path: string, body?: unknown): Promise<T> {
   const response = await fetch(`/v1${path}`, {
@@ -34,6 +47,7 @@ export async function api<T>(method: Method, path: string, body?: unknown): Prom
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
+  if (response.status >= 502 && response.status <= 504) wakeApi();
   if (response.status === 204) return undefined as T;
   const json: unknown = await response.json().catch(() => undefined);
   if (!response.ok)
