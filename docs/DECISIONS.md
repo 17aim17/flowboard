@@ -16,7 +16,7 @@ Each entry covers the decision, why I made it, what I rejected, the trade-off, a
 ## D-02 Postgres with Kysely and SQL migrations
 
 - **Decision:** Postgres 18. Kysely as a typed query builder. Migrations are hand-written SQL inside Kysely migration files, checked in.
-- **Why:** The domain is relational (tree, FKs, grants) with one semi-structured part (custom field values), which `jsonb` + GIN handles well. Kysely keeps the SQL visible, so the interview conversation is about the SQL that runs, and recursive CTEs and jsonb operators don't fight an ORM.
+- **Why:** The domain is relational (tree, FKs, grants) with one semi-structured part (custom field values), which `jsonb` + GIN handles well. Kysely keeps the SQL visible, so a reader of the code sees the SQL that runs, and recursive CTEs and jsonb operators don't fight an ORM.
 - **Rejected:** Prisma (weak at recursive CTEs and jsonb, plus a generated client and engine to explain). Drizzle (good, but its schema DSL plus generated diffs is a second source of truth next to the SQL). MongoDB (the tree, grants and FKs want relational integrity).
 - **Trade-off:** Hand-written DB row types for about 9 tables, kept next to the migrations.
 - **Revisit:** If the schema grows past about 30 tables, generate types from the DB (`kysely-codegen`).

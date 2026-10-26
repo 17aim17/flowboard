@@ -1,6 +1,6 @@
 # Flowboard design
 
-Written 2026-10-23, updated 2026-10-25 to match the built code. The assignment PDF (provided by the company, not committed to this repo) is the source of truth. The "why" behind each choice is in `docs/DECISIONS.md` (D-01, D-02, ...).
+Written 2026-10-23, updated 2026-10-26 to match the built code. The assignment PDF (provided by the company, not committed to this repo) is the source of truth. The "why" behind each choice is in `docs/DECISIONS.md` (D-01, D-02, ...).
 
 ## 1. What we are building
 
@@ -292,7 +292,7 @@ Why a cookie and not a token in the browser: tokens never reach JavaScript, so a
 - A migration: the identity columns on `users`, and a `sessions` table.
 - The SPA: the user switcher and the Alice fallback go. A 401 sends the browser to the login route.
 
-Routes, permissions, services and their tests stay the same. The tests keep sending `X-User-Id`, which stays as a mock mode turned on by `AUTH_MODE=mock` in development and CI. The production config never sets it, and the server refuses to start with `AUTH_MODE=mock` when `NODE_ENV=production`.
+Routes, permissions, services and their tests stay the same. The tests keep sending `X-User-Id`: the header would stay as a mock mode, turned on by an `AUTH_MODE=mock` setting in development and CI only. The production config never sets it, and the server would refuse to start with it when `NODE_ENV=production`.
 
 ## 10. API rules
 
@@ -435,7 +435,7 @@ Backend tests call the real API against a real test database. No mocks, because 
 
 Frontend:
 
-- One browser test (Playwright): open Sprint 12, check the four columns, open a task, change Estimate to a random value, save, reload the page, and check the value came back from the server. A random value lets the test run again on the same data.
+- One browser test (Playwright): open Sprint 12, check the four columns, open a task, change Estimate to a new value, save, reload the page, and check the value came back from the server. The test then saves the original value again, so running it leaves the demo data unchanged.
 - A bonus browser test: as Alice "Launch Content" is in the sidebar. Switch to Bob and it's gone, and opening its URL directly shows "You don't have access".
 - One component test (Vitest + Testing Library): each custom field type renders the right input and reports the value in the shape the API validates (a number, not `"5"`; option ids; `null` when emptied).
 - Not covered by automated tests: drag and drop itself, the optimistic rollback on a conflict (checked by hand in a browser), and the settings screens. The rules behind them are covered by the API tests.
@@ -480,7 +480,7 @@ Each step is committed with its tests:
 - (e) frontend: sidebar, board, table, drawer, settings
 - (f) browser and component tests
 - (g) one stretch goal: optimistic drag-and-drop (the activity feed stays a written design)
-- (h) README, AI_USAGE.md, interview prep notes
+- (h) README, AI_USAGE.md
 
 ## 18. Later (beyond the PDF, not built now)
 
