@@ -11,12 +11,18 @@ import { App } from './App.tsx';
 import { ApiError } from './api/client.ts';
 import { CurrentUserProvider } from './auth/current-user.tsx';
 
+// 502-504 means the API is starting (a sleeping free-plan host takes up to a minute to wake).
+const isWaking = (error: Error) => error instanceof ApiError && error.status >= 502 && error.status <= 504;
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 10_000,
       // Retrying won't fix "forbidden", "not found" or "invalid"; it only delays showing the error.
-      retry: (count, error) => !(error instanceof ApiError && error.status < 500) && count < 2,
+      // A waking API is retried every 5 seconds for 90 seconds, and the page keeps its loading state.
+      retry: (count, error) =>
+        isWaking(error) ? count < 18 : !(error instanceof ApiError && error.status < 500) && count < 2,
+      retryDelay: (count, error) => (isWaking(error) ? 5_000 : Math.min(1_000 * 2 ** count, 30_000)),
     },
   },
 });
