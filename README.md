@@ -36,6 +36,16 @@ The first start creates the tables and loads demo data. `make seed` resets the d
 
 **Demo data:** one workspace (Flowboard), two spaces (Engineering, and Marketing which is private), three folders, four lists, 25 tasks, 7 custom fields at three levels. Lists in the same folder have different boards: Backlog shows To Do, In Progress, Done, Closed; Sprint 12 adds In Review, renames Done to "Shipped" and hides Closed.
 
+### Deploy (Railway)
+
+The same images run on Railway as three services in one project:
+
+- **db:** the `postgres:18.6-alpine` image (the schema uses Postgres 18's `uuidv7()`), with a volume at `/var/lib/postgresql`.
+- **api:** `RAILWAY_DOCKERFILE_PATH=apps/api/Dockerfile`, `DATABASE_URL` pointing at `db.railway.internal`, `HOST=::` (the private network uses IPv6), and pre-deploy command `node src/db/migrate.ts && node src/db/seed.ts`.
+- **web:** `RAILWAY_DOCKERFILE_PATH=apps/web/Dockerfile`, `API_UPSTREAM=api.railway.internal:3000`, port 80, public domain.
+
+The deployed app keeps the mock login, so anyone with the link can act as any user and change the demo data. That's fine for a demo. Real login is planned in the "Auth in production" section below.
+
 ## Tests
 
 ```sh
