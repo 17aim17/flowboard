@@ -177,7 +177,15 @@ REST under `/v1`; the full, live reference is at http://localhost:8080/docs.
 
 ## Auth and other channels
 
-**Auth (mock).** Every request sends `X-User-Id: alice | bob | carol`. A Fastify plugin looks the handle up in `users`: missing or unknown is 401. The rest of the code only reads `request.user`. For production, replace that one plugin: verify an OIDC access token (or a session cookie) and map its subject to the user row. Routes, permissions and tests don't change.
+**Auth (mock).** Every request sends `X-User-Id: alice | bob | carol`. A Fastify plugin looks the handle up in `users`: missing or unknown is 401. The rest of the code only reads `request.user`. The web app remembers the picked user in localStorage and picks Alice when nothing is stored (a new or incognito window). That is only a demo convenience in the browser: the API itself still returns 401 without the header.
+
+**Auth in production.** Replace that one plugin with OIDC login:
+
+- **Browser:** the authorization code flow with PKCE goes through the API (`/v1/auth/login`, `/callback`, `/logout`). The API keeps a server-side session and sets an `HttpOnly; Secure; SameSite=Lax` cookie, so no token ever reaches JavaScript. nginx serves the app and the API from one origin, so the cookie is first-party.
+- **Scripts and mobile:** `Authorization: Bearer <token>` from the same provider, verified locally against its JWKS.
+- **Both paths** map the provider's `(issuer, subject)` to a row in `users`. The role and grants still come from our database, never from token claims.
+
+Routes, permissions and tests don't change, and the tests keep the header as a dev-only mock mode. Full plan in [DESIGN.md section 9](docs/DESIGN.md#9-login-mock).
 
 **Second channel: curl / scripts.** The same API, same auth header, same errors. Outputs below are from the running app.
 

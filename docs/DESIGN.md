@@ -261,7 +261,38 @@ In words: you see a list only if you're allowed at every step of its path. A den
 - Every request sends `X-User-Id: alice` (or bob, carol).
 - The server looks that name up in the `users` table. Missing or unknown returns **401**.
 - The role comes from the database, never from the request.
-- In production, this one piece would be replaced by real login (for example OIDC tokens). Nothing else changes, because the rest of the code only reads `request.user`.
+- The web app remembers the picked user in localStorage. With nothing stored (a new or incognito window) it picks Alice, so the demo opens straight away. That fallback lives only in the browser: the API still returns 401 for any request without a known `X-User-Id`.
+- In production, this one piece would be replaced by real login. Nothing else changes, because the rest of the code only reads `request.user`.
+
+### Login in production
+
+The plan is OIDC against the company's identity provider (Okta, Auth0, Google Workspace or similar). The API never stores passwords.
+
+**Browser: session cookie.**
+
+1. With no session, the SPA gets a 401 and sends the browser to `GET /v1/auth/login`.
+2. The API starts the OIDC authorization code flow with PKCE and redirects to the identity provider.
+3. The provider redirects back to `GET /v1/auth/callback`. The API exchanges the code for tokens, checks the ID token (signature from the provider's JWKS, `iss`, `aud`, `exp`, `nonce`) and creates a session row in Postgres (or Redis): `{ id, user_id, expires_at }`.
+4. The API sets `HttpOnly; Secure; SameSite=Lax` on a cookie holding only the random session id, then redirects to the app.
+5. On every request, the auth hook reads the cookie, loads the session and its user, and sets `request.user`. An expired or revoked session is a 401.
+6. `POST /v1/auth/logout` deletes the session row and clears the cookie.
+
+Why a cookie and not a token in the browser: tokens never reach JavaScript, so an XSS bug can't steal them. nginx already serves the app and the API from one origin, so the cookie is first-party and there's no CORS to set up. For CSRF, `SameSite=Lax` blocks cross-site POSTs, and the API also checks the `Origin` header on writes.
+
+**Scripts, the curl channel and a future mobile app: bearer tokens.** These send `Authorization: Bearer <access token>`, issued by the same provider (client credentials for scripts, authorization code with PKCE for mobile). The hook verifies the JWT locally against the cached JWKS, with no call to the provider per request. So the hook has two paths, cookie or bearer, and both end in the same `request.user`.
+
+**Mapping a login to a user.** The `users` table gets `idp_issuer` and `idp_subject` with a unique index on the pair. The first time someone signs in, they are matched to an invited user by verified email and the pair is saved. After that only the pair is used, because emails can change. An unknown person is a 401, since there is no self signup.
+
+**Roles stay in our database.** The role and the grants are read from `users` and `grants`, as now, not from token claims. An admin can change a role and it applies on the next request. If the company wants roles managed in the identity provider later, a group claim can be synced into `users.role` at login. It is still never read from the request itself.
+
+**What changes in the code:**
+
+- The auth plugin: cookie and bearer paths instead of `X-User-Id`.
+- New routes: `/v1/auth/login`, `/callback`, `/logout`.
+- A migration: the identity columns on `users`, and a `sessions` table.
+- The SPA: the user switcher and the Alice fallback go. A 401 sends the browser to the login route.
+
+Routes, permissions, services and their tests stay the same. The tests keep sending `X-User-Id`, which stays as a mock mode turned on by `AUTH_MODE=mock` in development and CI. The production config never sets it, and the server refuses to start with `AUTH_MODE=mock` when `NODE_ENV=production`.
 
 ## 10. API rules
 
