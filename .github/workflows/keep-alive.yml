@@ -8,7 +8,7 @@ name: Keep demo API awake
 on:
   schedule:
     # Off the top of the hour, when GitHub's scheduler is busiest and runs start late.
-    - cron: '3-59/10 * * * *'
+    - cron: '3,13,23,33,43,53 * * * *'
   workflow_dispatch:
 
 permissions: {}
