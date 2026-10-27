@@ -41,7 +41,7 @@ The first start creates the tables and loads demo data. `make seed` resets the d
 
 [`render.yaml`](render.yaml) runs the same images on Render's free plan: Postgres 18 (the schema uses `uuidv7()`), the API (migrations and seed run on start), and the web app. nginx forwards `/v1` to the API's public URL, set in `API_UPSTREAM`.
 
-On the free plan the services sleep after 15 idle minutes, so the first request can take about a minute. The free database expires after 30 days.
+On the free plan a service sleeps after 15 idle minutes. A scheduled GitHub Action ([`keep-alive.yml`](.github/workflows/keep-alive.yml)) calls the API's `/health` every 10 minutes so it stays awake; keeping both services awake would go over the plan's 750 hours a month. The web app may sleep, and then its first load takes about 15 seconds. If the API does fall asleep (a late scheduled run), the app wakes it and retries, which takes up to a minute. The free database expires after 30 days.
 
 The deployed app keeps the mock login, so anyone with the link can act as any user and change the demo data. That's fine for a demo. Real login is planned in the "Auth in production" section below.
 
